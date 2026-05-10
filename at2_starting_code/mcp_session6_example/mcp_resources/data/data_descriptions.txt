@@ -28,40 +28,97 @@ user_inventory.csv
 
 
 
+____
+
 user_intake_history.csv
 
-| Column                 | Purpose                                                                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `intake_id`            | Unique ID for each intake row, e.g. `INTAKE-0001`                                                                             |
-| `date`                 | Date the food was eaten, preferably in `YYYY-MM-DD` format                                                                    |
-| `time`                 | Approximate time the food was eaten, e.g. `08:00`, `12:30`, `18:30`                                                           |
-| `meal_type`            | Type of eating event, e.g. `Breakfast`, `Lunch`, `Dinner`, `Snack`, `Drink`                                                   |
-| `entry_type`           | Type of intake row, e.g. `single_item`, `meal_summary`, `meal_ingredient`, `recipe_serving`                                   |
-| `meal_id`              | Shared ID used to group rows from the same meal, e.g. `MEAL-0003`                                                             |
-| `parent_meal_id`       | Links ingredient rows back to the main meal summary row                                                                       |
-| `meal_name`            | Human-readable meal name, e.g. `Beef tomato pasta`, `Chicken rice bowl`                                                       |
-| `meal_description`     | Free-text description of the meal or user input                                                                               |
-| `ingredient_number`    | Order of an ingredient inside a meal, e.g. `1`, `2`, `3`                                                                      |
-| `food_item`            | Food item, meal, or ingredient name                                                                                           |
-| `brand`                | Brand name, if relevant                                                                                                       |
-| `category`             | Food category, e.g. `Fruit`, `Mixed meal`, `Grain`, `Meat`, `Dairy`                                                           |
-| `source`               | Where the food came from, e.g. `Home`, `Takeaway`, `Restaurant`, `Work`, `Friend/family`                                      |
-| `stock_id`             | Links the eaten food or ingredient back to `user_inventory.csv` where possible                                                |
-| `amount_eaten`         | Human-friendly portion description, e.g. `1 bowl`, `2 slices`, `1 medium banana`, `80g dry pasta`                             |
-| `servings_used`        | Estimated number of servings consumed                                                                                         |
-| `portion_confidence`   | Confidence in the amount eaten estimate, e.g. `High`, `Medium`, `Low`                                                         |
-| `calories_estimate`    | Estimated calories consumed for this row                                                                                      |
-| `protein_g_estimate`   | Estimated protein consumed in grams                                                                                           |
-| `carbs_g_estimate`     | Estimated carbohydrates consumed in grams                                                                                     |
-| `fat_g_estimate`       | Estimated fat consumed in grams                                                                                               |
-| `fibre_g_estimate`     | Estimated fibre consumed in grams                                                                                             |
-| `sugar_g_estimate`     | Estimated sugar consumed in grams                                                                                             |
-| `sodium_mg_estimate`   | Estimated sodium consumed in milligrams                                                                                       |
-| `nutrition_confidence` | Confidence in the nutrition estimate, e.g. `High`, `Medium`, `Low`                                                            |
-| `was_finished`         | Whether the portion or meal was finished, e.g. `Yes`, `No`, `Partial`                                                         |
-| `leftovers_created`    | Whether leftovers were created, e.g. `Yes`, `No`                                                                              |
-| `hunger_before`        | Optional hunger score before eating, e.g. `1` to `10`                                                                         |
-| `fullness_after`       | Optional fullness score after eating, e.g. `1` to `10`                                                                        |
-| `energy_after`         | Optional energy score after eating, e.g. `1` to `10`                                                                          |
-| `how_logged`           | How the intake was recorded, e.g. `Quick manual log`, `Natural language estimate`, `Ingredient breakdown`, `Recipe-style log` |
-| `notes`                | Extra notes about the meal, portion uncertainty, missing ingredients, or estimate quality                                     |
+| Column                     | Description                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `intake_id`                | Unique ID for each eating event, e.g. `INTAKE-0001`. Used to link to `user_intake_items.csv`.             |
+| `date`                     | Date the food was eaten, preferably in `YYYY-MM-DD` format.                                               |
+| `time`                     | Approximate time the food was eaten, e.g. `08:00`, `12:30`, `18:30`.                                      |
+| `meal_type`                | Type of eating event, e.g. `Breakfast`, `Lunch`, `Dinner`, `Snack`, `Drink`.                              |
+| `meal_name`                | Short human-readable meal name, e.g. `Spaghetti bolognese`, `Chicken rice bowl`, `Apple`.                 |
+| `meal_description`         | Free-text description of what was eaten. Useful for natural language logs.                                |
+| `source`                   | Where the food came from, e.g. `Home`, `Takeaway`, `Restaurant`, `Work`, `Friend/family`.                 |
+| `amount_eaten`             | Human-friendly portion description, e.g. `1 bowl`, `1 serve`, `2 slices`, `1 medium apple`.               |
+| `portion_confidence`       | Confidence in the portion estimate, e.g. `High`, `Medium`, `Low`.                                         |
+| `total_calories_estimate`  | Estimated total calories consumed for the whole eating event.                                             |
+| `total_protein_g_estimate` | Estimated total protein consumed in grams.                                                                |
+| `total_carbs_g_estimate`   | Estimated total carbohydrates consumed in grams.                                                          |
+| `total_fat_g_estimate`     | Estimated total fat consumed in grams.                                                                    |
+| `total_fibre_g_estimate`   | Estimated total fibre consumed in grams.                                                                  |
+| `total_sugar_g_estimate`   | Estimated total sugar consumed in grams.                                                                  |
+| `total_sodium_mg_estimate` | Estimated total sodium consumed in milligrams.                                                            |
+| `nutrition_confidence`     | Confidence in the total nutrition estimate, e.g. `High`, `Medium`, `Low`.                                 |
+| `has_item_breakdown`       | Whether this meal has ingredient/component rows in `user_intake_items.csv`. Use `Yes` or `No`.            |
+| `hunger_before`            | Optional hunger score before eating, e.g. `1` to `10`.                                                    |
+| `fullness_after`           | Optional fullness score after eating, e.g. `1` to `10`.                                                   |
+| `energy_after`             | Optional energy score after eating, e.g. `1` to `10`.                                                     |
+| `how_logged`               | How the entry was recorded, e.g. `Quick manual log`, `Ingredient breakdown`, `Natural language estimate`. |
+| `notes`                    | Extra notes about portion uncertainty, missing details, batch meals, or context.                          |
+
+
+It answers:
+When did I eat?
+What did I call the meal?
+How much did I roughly eat?
+Was it breakfast, lunch, dinner, or snack?
+Do I have ingredient details for this meal?
+
+Example row:
+intake_id,date,time,meal_type,meal_name,meal_description,source,amount_eaten,portion_confidence,total_calories_estimate,total_protein_g_estimate,total_carbs_g_estimate,total_fat_g_estimate,total_fibre_g_estimate,total_sugar_g_estimate,total_sodium_mg_estimate,nutrition_confidence,has_item_breakdown,how_logged,notes
+INTAKE-0001,2026-05-10,18:30,Dinner,Beef tomato pasta,"Homemade pasta with beef mince, diced tomatoes, cheese and olive oil",Home,1 large bowl,Medium,780,43,64,39,6,8,515,Medium,Yes,Recipe-style log,Meal summary
+
+This row says:
+I ate beef tomato pasta for dinner.
+It was about one large bowl.
+The total estimate is around 780 calories.
+There is an ingredient breakdown available.
+
+___
+
+user_intake_items.csv
+
+| Column                 | Description                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `intake_item_id`       | Unique ID for each ingredient/component row, e.g. `ITEM-0001`.                                 |
+| `intake_id`            | Links this ingredient/component back to a meal in `user_intake_history.csv`.                   |
+| `item_number`          | Order of the item within the meal, e.g. `1`, `2`, `3`.                                         |
+| `food_item`            | Ingredient or component name, e.g. `Pasta`, `Beef mince`, `Chicken breast`, `Broccoli`.        |
+| `brand`                | Brand name if known, e.g. `Generic / supermarket brand`, `Coles`, `Woolworths`.                |
+| `category`             | Food category, e.g. `Grain`, `Meat`, `Dairy`, `Vegetable`, `Cooking oil`.                      |
+| `stock_id`             | Links the item back to `user_inventory.csv` where possible, e.g. `STOCK-0006`.                 |
+| `amount_used`          | Human-readable amount used/eaten, e.g. `80g dry pasta`, `125g raw beef mince`, `1 tbsp`.       |
+| `servings_used`        | Estimated number of servings consumed from the inventory item.                                 |
+| `portion_confidence`   | Confidence in the amount used estimate, e.g. `High`, `Medium`, `Low`.                          |
+| `calories_estimate`    | Estimated calories contributed by this ingredient/component.                                   |
+| `protein_g_estimate`   | Estimated protein contributed by this ingredient/component.                                    |
+| `carbs_g_estimate`     | Estimated carbohydrates contributed by this ingredient/component.                              |
+| `fat_g_estimate`       | Estimated fat contributed by this ingredient/component.                                        |
+| `fibre_g_estimate`     | Estimated fibre contributed by this ingredient/component.                                      |
+| `sugar_g_estimate`     | Estimated sugar contributed by this ingredient/component.                                      |
+| `sodium_mg_estimate`   | Estimated sodium contributed by this ingredient/component.                                     |
+| `nutrition_confidence` | Confidence in the nutrition estimate for this item.                                            |
+| `notes`                | Extra notes, such as “scaled from batch”, “fat varies by mince type”, or “visually estimated”. |
+
+
+It answers:
+What foods were inside this meal?
+How much of each food was used?
+Which inventory item did it come from?
+What nutrition did each ingredient contribute?
+
+Example rows:
+intake_item_id,intake_id,item_number,food_item,brand,category,stock_id,amount_used,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,portion_confidence,nutrition_confidence,notes
+ITEM-0001,INTAKE-0001,1,Pasta,Generic / supermarket brand,Grain,STOCK-0006,80g dry pasta,1,285,10,57,1.5,3,2,10,Medium,Medium,Ingredient row
+ITEM-0002,INTAKE-0001,2,Beef mince,,Meat,STOCK-0018,125g raw beef mince,1,250,25,0,17,0,0,75,Medium,Low,Fat varies by mince type
+ITEM-0003,INTAKE-0001,3,Canned diced tomatoes,Generic / supermarket brand,Canned vegetables,STOCK-0010,200g,1,40,2,7,0.5,3,6,250,Medium,Medium,Ingredient row
+ITEM-0004,INTAKE-0001,4,Cheddar cheese,Generic / supermarket brand,Dairy,STOCK-0020,30g,1,125,7.5,0.5,10,0,0.2,180,Medium,Medium,Ingredient row
+ITEM-0005,INTAKE-0001,5,Olive oil,Generic / supermarket brand,Cooking oil,STOCK-0022,1 tbsp,1,120,0,0,14,0,0,0,Low,High,Easy to underestimate
+
+
+Each row points back to the same meal using:
+intake_id = INTAKE-0001
+
+These five ingredient rows belong to the beef tomato pasta meal.
