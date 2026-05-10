@@ -1,31 +1,67 @@
 user_inventory.csv
-| Column                  | Purpose                                                       |
-| ----------------------- | ------------------------------------------------------------- |
-| `stock_id`              | Unique ID for each inventory item, e.g. `STOCK-0001`          |
-| `food_item`             | Main item name, e.g. `Brown rice`, `Eggs`, `Greek yoghurt`    |
-| `brand`                 | Brand name, if relevant                                       |
-| `category`              | Food group, e.g. `Grain`, `Protein`, `Vegetable`, `Seasoning` |
-| `storage_location`      | Fridge, freezer, cupboard, pantry, bench                      |
-| `quantity_on_hand`      | How many units you currently own                              |
-| `quantity_unit`         | Bag, jar, tin, bottle, pieces, kg, g, serves                  |
-| `servings_remaining`    | Estimated number of servings left                             |
-| `expiry_date`           | Best before/use by date                                       |
-| `stock_status`          | In stock, low, finished, expired                              |
-| `serving_size`          | Size of one serving                                           |
-| `serving_unit`          | g, ml, piece, cup, tbsp, tsp, serve                           |
-| `calories_per_serving`  | Calories for one serving                                      |
-| `protein_g_per_serving` | Protein per serving                                           |
-| `carbs_g_per_serving`   | Carbohydrates per serving                                     |
-| `fat_g_per_serving`     | Fat per serving                                               |
-| `fibre_g_per_serving`   | Fibre per serving                                             |
-| `sugar_g_per_serving`   | Sugar per serving                                             |
-| `sodium_mg_per_serving` | Sodium per serving                                            |
-| `portion_confidence`    | High, Medium, Low                                             |
-| `nutrition_confidence`  | High, Medium, Low                                             |
-| `nutrition_source`      | Package label, estimate, online database, manual              |
-| `last_checked`          | Date you last checked/updated the item                        |
-| `notes`                 | Anything useful                                               |
+| Column                  | Purpose                                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `stock_id`              | Unique ID for each inventory item, e.g. `STOCK-0001`                                                                 |
+| `food_item`             | Main item name, e.g. `Brown rice`, `Eggs`, `Greek yoghurt`                                                           |
+| `brand`                 | Brand name, if relevant, e.g. `SunRice`, `Bega`, `Coles`, `Woolworths`                                               |
+| `category`              | Food group or item type, e.g. `Grain`, `Dairy`, `Meat`, `Fruit`, `Vegetable`, `Seasoning`                            |
+| `storage_location`      | Where the item is stored, e.g. `Fridge`, `Freezer`, `Cupboard`, `Pantry`, `Bench`                                    |
+| `quantity_on_hand`      | Current amount owned, e.g. `1`, `2`, `6`, `0.5`                                                                      |
+| `quantity_unit`         | Unit used for the stock count, e.g. `bag`, `loaf`, `bottle`, `tin`, `pieces`, `kg`, `g`                              |
+| `servings_remaining`    | Estimated number of servings left in the item                                                                        |
+| `expiry_date`           | Best before or use-by date, preferably in `YYYY-MM-DD` format                                                        |
+| `stock_status`          | Current stock state, e.g. `In stock`, `Low`, `Finished`, `Expired`                                                   |
+| `serving_size`          | Amount considered one serving, e.g. `75`, `100`, `250`, `1`                                                          |
+| `serving_unit`          | Unit for one serving, e.g. `g`, `ml`, `piece`, `cup`, `slice`, `tbsp`, `tsp`                                         |
+| `calories_per_serving`  | Estimated calories in one serving                                                                                    |
+| `protein_g_per_serving` | Estimated protein in grams per serving                                                                               |
+| `carbs_g_per_serving`   | Estimated carbohydrates in grams per serving                                                                         |
+| `fat_g_per_serving`     | Estimated fat in grams per serving                                                                                   |
+| `fibre_g_per_serving`   | Estimated fibre in grams per serving                                                                                 |
+| `sugar_g_per_serving`   | Estimated sugar in grams per serving                                                                                 |
+| `sodium_mg_per_serving` | Estimated sodium in milligrams per serving                                                                           |
+| `portion_confidence`    | Confidence in the serving or remaining portion estimate, e.g. `High`, `Medium`, `Low`                                |
+| `nutrition_confidence`  | Confidence in the nutrition values, e.g. `High`, `Medium`, `Low`                                                     |
+| `nutrition_source`      | Where the nutrition values came from, e.g. `Package label`, `Generic estimate`, `Online database`, `Manual estimate` |
+| `last_checked`          | Date the item was last checked or updated, preferably in `YYYY-MM-DD` format                                         |
+| `notes`                 | Extra notes about the item, portion estimate, brand variation, or usage                                              |
+
 
 
 user_intake_history.csv
 
+| Column                 | Purpose                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `intake_id`            | Unique ID for each intake row, e.g. `INTAKE-0001`                                                                             |
+| `date`                 | Date the food was eaten, preferably in `YYYY-MM-DD` format                                                                    |
+| `time`                 | Approximate time the food was eaten, e.g. `08:00`, `12:30`, `18:30`                                                           |
+| `meal_type`            | Type of eating event, e.g. `Breakfast`, `Lunch`, `Dinner`, `Snack`, `Drink`                                                   |
+| `entry_type`           | Type of intake row, e.g. `single_item`, `meal_summary`, `meal_ingredient`, `recipe_serving`                                   |
+| `meal_id`              | Shared ID used to group rows from the same meal, e.g. `MEAL-0003`                                                             |
+| `parent_meal_id`       | Links ingredient rows back to the main meal summary row                                                                       |
+| `meal_name`            | Human-readable meal name, e.g. `Beef tomato pasta`, `Chicken rice bowl`                                                       |
+| `meal_description`     | Free-text description of the meal or user input                                                                               |
+| `ingredient_number`    | Order of an ingredient inside a meal, e.g. `1`, `2`, `3`                                                                      |
+| `food_item`            | Food item, meal, or ingredient name                                                                                           |
+| `brand`                | Brand name, if relevant                                                                                                       |
+| `category`             | Food category, e.g. `Fruit`, `Mixed meal`, `Grain`, `Meat`, `Dairy`                                                           |
+| `source`               | Where the food came from, e.g. `Home`, `Takeaway`, `Restaurant`, `Work`, `Friend/family`                                      |
+| `stock_id`             | Links the eaten food or ingredient back to `user_inventory.csv` where possible                                                |
+| `amount_eaten`         | Human-friendly portion description, e.g. `1 bowl`, `2 slices`, `1 medium banana`, `80g dry pasta`                             |
+| `servings_used`        | Estimated number of servings consumed                                                                                         |
+| `portion_confidence`   | Confidence in the amount eaten estimate, e.g. `High`, `Medium`, `Low`                                                         |
+| `calories_estimate`    | Estimated calories consumed for this row                                                                                      |
+| `protein_g_estimate`   | Estimated protein consumed in grams                                                                                           |
+| `carbs_g_estimate`     | Estimated carbohydrates consumed in grams                                                                                     |
+| `fat_g_estimate`       | Estimated fat consumed in grams                                                                                               |
+| `fibre_g_estimate`     | Estimated fibre consumed in grams                                                                                             |
+| `sugar_g_estimate`     | Estimated sugar consumed in grams                                                                                             |
+| `sodium_mg_estimate`   | Estimated sodium consumed in milligrams                                                                                       |
+| `nutrition_confidence` | Confidence in the nutrition estimate, e.g. `High`, `Medium`, `Low`                                                            |
+| `was_finished`         | Whether the portion or meal was finished, e.g. `Yes`, `No`, `Partial`                                                         |
+| `leftovers_created`    | Whether leftovers were created, e.g. `Yes`, `No`                                                                              |
+| `hunger_before`        | Optional hunger score before eating, e.g. `1` to `10`                                                                         |
+| `fullness_after`       | Optional fullness score after eating, e.g. `1` to `10`                                                                        |
+| `energy_after`         | Optional energy score after eating, e.g. `1` to `10`                                                                          |
+| `how_logged`           | How the intake was recorded, e.g. `Quick manual log`, `Natural language estimate`, `Ingredient breakdown`, `Recipe-style log` |
+| `notes`                | Extra notes about the meal, portion uncertainty, missing ingredients, or estimate quality                                     |
