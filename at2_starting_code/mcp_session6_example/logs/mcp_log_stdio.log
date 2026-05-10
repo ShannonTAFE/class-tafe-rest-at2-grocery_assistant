@@ -1,0 +1,52 @@
+2026-03-02 15:59:16,049 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-03-02 16:00:11,105 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-03-02 16:00:11,105 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-03-02 16:00:28,249 [INFO] mcp.server.lowlevel.server: Processing request of type CallToolRequest
+2026-03-02 16:00:28,249 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: call_tool celsius_to_fahrenheit with {'celsius': 25}
+2026-05-10 09:44:53,016 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-10 09:44:53,352 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 09:44:53,394 [INFO] mcp.server.lowlevel.server: Processing request of type SetLevelRequest
+2026-05-10 09:44:53,395 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: set_logging_level debug
+2026-05-10 09:45:12,484 [INFO] mcp.server.lowlevel.server: Processing request of type ListResourcesRequest
+2026-05-10 09:45:12,485 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_resources
+2026-05-10 09:50:28,401 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-05-10 09:50:28,402 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-05-10 09:50:51,322 [INFO] mcp.server.lowlevel.server: Processing request of type CallToolRequest
+2026-05-10 09:50:51,323 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: call_tool celsius_to_fahrenheit with {'celsius': 0}
+2026-05-10 09:51:06,803 [INFO] mcp.server.lowlevel.server: Processing request of type CallToolRequest
+2026-05-10 09:51:06,803 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: call_tool kilometers_to_miles with {'kilometers': 0}
+2026-05-10 09:51:15,274 [INFO] mcp.server.lowlevel.server: Processing request of type CallToolRequest
+2026-05-10 09:51:15,275 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: call_tool kilometers_to_miles with {'kilometers': 10}
+2026-05-10 09:52:02,647 [INFO] mcp.server.lowlevel.server: Processing request of type CallToolRequest
+2026-05-10 09:52:02,647 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: call_tool kilometers_to_miles with {'kilometers': 10}
+2026-05-10 10:39:12,940 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 10:57:39,082 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 11:33:06,397 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 11:35:35,326 [WARNING] root: Failed to validate request: Received request before initialization was complete
+2026-05-10 11:35:39,279 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 11:35:39,307 [INFO] mcp.server.lowlevel.server: Processing request of type SetLevelRequest
+2026-05-10 11:35:39,307 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: set_logging_level debug
+2026-05-10 11:35:42,717 [INFO] mcp.server.lowlevel.server: Processing request of type ListResourceTemplatesRequest
+2026-05-10 11:35:42,718 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_resource_templates
+2026-05-10 11:39:13,348 [INFO] fastmcp.server.mixins.transport: Starting MCP server 'Unit Converter (STDIO)' with transport 'stdio'
+2026-05-10 11:39:13,383 [INFO] mcp.server.lowlevel.server: Processing request of type SetLevelRequest
+2026-05-10 11:39:13,383 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: set_logging_level debug
+2026-05-10 11:39:34,309 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-05-10 11:39:34,310 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-05-10 11:39:41,992 [INFO] mcp.server.lowlevel.server: Processing request of type ListPromptsRequest
+2026-05-10 11:39:41,993 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_prompts
+2026-05-10 11:39:54,906 [INFO] mcp.server.lowlevel.server: Processing request of type ListResourcesRequest
+2026-05-10 11:39:54,907 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_resources
+2026-05-10 11:40:14,503 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-05-10 11:40:14,504 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-05-10 11:40:16,500 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-05-10 11:40:16,500 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-05-10 11:40:17,551 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-05-10 11:40:17,551 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_tools
+2026-05-10 11:40:18,995 [INFO] mcp.server.lowlevel.server: Processing request of type PingRequest
+2026-05-10 11:40:40,936 [INFO] mcp.server.lowlevel.server: Processing request of type ReadResourceRequest
+2026-05-10 11:40:40,936 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: read_resource resource://unit_reference
+2026-05-10 11:40:44,338 [INFO] mcp.server.lowlevel.server: Processing request of type ReadResourceRequest
+2026-05-10 11:40:44,338 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: read_resource resource://troubleshooting_guide
+2026-05-10 11:40:46,385 [INFO] mcp.server.lowlevel.server: Processing request of type ListResourceTemplatesRequest
+2026-05-10 11:40:46,385 [DEBUG] fastmcp.server.mixins.mcp_operations: [Unit Converter (STDIO)] Handler called: list_resource_templates
