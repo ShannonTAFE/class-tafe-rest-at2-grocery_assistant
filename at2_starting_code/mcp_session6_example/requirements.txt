@@ -4,3 +4,6 @@ fastmcp
 fastapi 
 fastapi-mcp 
 feedparser
+
+pandas
+matplotlib

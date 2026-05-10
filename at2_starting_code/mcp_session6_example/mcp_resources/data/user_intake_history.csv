@@ -1,0 +1,3 @@
+intake_id,date,time,meal_type,food_item,brand,category,source,stock_id,amount_eaten,servings_used,portion_confidence,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,was_finished,leftovers_created,hunger_before,fullness_after,energy_after,how_logged,notes
+INTAKE-0001,2026-05-10,08:00,Breakfast,Bananas,,Fresh fruit,Home,STOCK-0002,1 medium banana,1,High,105,1.3,27,0.4,3.1,14,1,Medium,Yes,No,,,,Quick manual log,Example row
+INTAKE-0002,2026-05-10,12:30,Lunch,Brown rice with vegetables,,Mixed meal,Home,STOCK-0001,1 large bowl,1.5,Low,,,,,,,,Low,Yes,No,,,,Quick manual log,Mixed meal estimate

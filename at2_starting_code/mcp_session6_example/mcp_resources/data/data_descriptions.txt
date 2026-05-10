@@ -1,0 +1,31 @@
+user_inventory.csv
+| Column                  | Purpose                                                       |
+| ----------------------- | ------------------------------------------------------------- |
+| `stock_id`              | Unique ID for each inventory item, e.g. `STOCK-0001`          |
+| `food_item`             | Main item name, e.g. `Brown rice`, `Eggs`, `Greek yoghurt`    |
+| `brand`                 | Brand name, if relevant                                       |
+| `category`              | Food group, e.g. `Grain`, `Protein`, `Vegetable`, `Seasoning` |
+| `storage_location`      | Fridge, freezer, cupboard, pantry, bench                      |
+| `quantity_on_hand`      | How many units you currently own                              |
+| `quantity_unit`         | Bag, jar, tin, bottle, pieces, kg, g, serves                  |
+| `servings_remaining`    | Estimated number of servings left                             |
+| `expiry_date`           | Best before/use by date                                       |
+| `stock_status`          | In stock, low, finished, expired                              |
+| `serving_size`          | Size of one serving                                           |
+| `serving_unit`          | g, ml, piece, cup, tbsp, tsp, serve                           |
+| `calories_per_serving`  | Calories for one serving                                      |
+| `protein_g_per_serving` | Protein per serving                                           |
+| `carbs_g_per_serving`   | Carbohydrates per serving                                     |
+| `fat_g_per_serving`     | Fat per serving                                               |
+| `fibre_g_per_serving`   | Fibre per serving                                             |
+| `sugar_g_per_serving`   | Sugar per serving                                             |
+| `sodium_mg_per_serving` | Sodium per serving                                            |
+| `portion_confidence`    | High, Medium, Low                                             |
+| `nutrition_confidence`  | High, Medium, Low                                             |
+| `nutrition_source`      | Package label, estimate, online database, manual              |
+| `last_checked`          | Date you last checked/updated the item                        |
+| `notes`                 | Anything useful                                               |
+
+
+user_intake_history.csv
+
