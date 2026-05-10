@@ -1,0 +1,8 @@
+# Our framework
+mcp[cli]
+pandas
+fastapi
+uvicorn[standard]
+fastapi-mcp
+feedparser
+matplotlib
