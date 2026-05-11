@@ -1,5 +1,7 @@
-python -m grocery_assistant_mcp.stdio_server
+stdio_server
+C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
 
--m grocery_assistant_mcp.stdio_server
+npx @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
 
-.\.venv\Scripts\python.exe
+
+

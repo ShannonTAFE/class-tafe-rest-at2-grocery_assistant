@@ -7,7 +7,7 @@ from grocery_assistant_mcp.utils.logging_config import configure_logging
 
 
 def create_mcp_server() -> FastMCP:
-    #configure_logging()
+    configure_logging()
 
     mcp = FastMCP("Grocery Assistant")
 
