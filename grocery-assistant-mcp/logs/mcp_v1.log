@@ -33,3 +33,20 @@
 2026-05-11 21:54:41,856 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-11 21:54:50,239 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-11 21:55:26,219 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:32:28,737 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 22:32:31,457 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 22:32:38,492 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:32:55,777 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:32:59,595 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:33:02,499 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:33:29,876 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:33:48,375 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:42:22,037 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 22:42:24,208 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 22:42:30,911 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:42:47,478 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:46:54,014 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 22:46:57,256 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 22:47:03,685 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:47:14,505 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 22:47:25,480 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest

@@ -28,3 +28,24 @@ def register_intake_tools(mcp: FastMCP) -> None:
             days_back=days_back,
             meal_type=meal_type,
         )
+    @mcp.tool()
+    def get_daily_intake_summary(date: str) -> dict:
+        """
+        Get all logged meals, food items, and calculated nutrition totals
+        for a specific date.
+
+        Args:
+            date: Date to summarise in YYYY-MM-DD format.
+
+        Returns:
+            A dictionary containing:
+            - date
+            - meal_count
+            - item_count
+            - meals
+            - items
+            - nutrition_totals
+            - missing_nutrition_counts
+        """
+
+        return grocery_service.get_daily_intake_summary(date=date)
