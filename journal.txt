@@ -4,4 +4,7 @@ C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
 npx @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
 
 
+run tests 
+pytest -q 
+
 
