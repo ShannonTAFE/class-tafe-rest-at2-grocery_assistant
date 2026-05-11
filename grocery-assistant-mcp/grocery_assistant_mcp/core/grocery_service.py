@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -236,5 +237,74 @@ def search_inventory(
 
     if location and "location" in df.columns:
         df = df[_safe_text_series(df, "location") == location]
+
+    return df_to_records(df)
+
+def get_recent_intake(
+    days_back: int = 7,
+    meal_type: str = "",
+) -> list[dict]:
+    """
+    Return recent intake history records.
+
+    Optional filters:
+    - days_back: number of days back from today to include
+    - meal_type: breakfast, lunch, dinner, snack, etc.
+
+    This function reads from user_intake_history.csv.
+    """
+    df = read_intake_history()
+
+    if df.empty:
+        return []
+
+    if "date" not in df.columns:
+        logger.warning("Cannot get recent intake because 'date' column is missing.")
+        return []
+
+    # Make sure days_back is safe and sensible.
+    try:
+        days_back = int(days_back)
+    except (TypeError, ValueError):
+        days_back = 7
+
+    if days_back < 0:
+        days_back = 7
+
+    today = date.today()
+    start_date = today - timedelta(days=days_back)
+
+    # Parse date column safely.
+    df = df.copy()
+    df["_parsed_date"] = pd.to_datetime(
+        df["date"],
+        errors="coerce",
+    ).dt.date
+
+    # Keep only rows with valid dates inside the recent window.
+    df = df[
+        (df["_parsed_date"].notna())
+        & (df["_parsed_date"] >= start_date)
+        & (df["_parsed_date"] <= today)
+    ]
+
+    # Optional meal_type filter.
+    if meal_type and "meal_type" in df.columns:
+        meal_type_clean = meal_type.strip().lower()
+        df = df[_safe_text_series(df, "meal_type") == meal_type_clean]
+
+    # Sort newest first.
+    sort_columns = ["_parsed_date"]
+
+    if "time" in df.columns:
+        sort_columns.append("time")
+
+    df = df.sort_values(
+        by=sort_columns,
+        ascending=False,
+    )
+
+    # Remove helper column before returning.
+    df = df.drop(columns=["_parsed_date"], errors="ignore")
 
     return df_to_records(df)
