@@ -1,0 +1,2 @@
+python -m grocery_assistant_mcp.stdio_server
+
