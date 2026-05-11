@@ -1,0 +1,5 @@
+2026-05-11 15:59:48,235 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 16:04:35,111 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 16:06:59,371 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-11 16:07:02,875 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-11 16:20:29,978 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourceTemplatesRequest
