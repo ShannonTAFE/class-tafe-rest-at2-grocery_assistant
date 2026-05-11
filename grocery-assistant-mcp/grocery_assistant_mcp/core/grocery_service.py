@@ -193,3 +193,48 @@ def summarise_intake_day(date: str) -> dict:
         "items": df_to_records(day_items),
         "nutrition_totals": totals,
     }
+
+def search_inventory(
+    query: str = "",
+    category: str = "",
+    location: str = "",
+) -> list[dict]:
+    """
+    Search the inventory by query, category, and location.
+
+    Query searches across:
+    - food_item
+    - brand
+    - notes
+
+    Category and location are exact filters.
+    """
+    df = read_inventory()
+
+    if df.empty:
+        return []
+
+    query = query.strip().lower()
+    category = category.strip().lower()
+    location = location.strip().lower()
+
+    if query:
+        searchable_columns = ["food_item", "brand", "notes"]
+        mask = pd.Series(False, index=df.index)
+
+        for column in searchable_columns:
+            if column in df.columns:
+                mask = mask | _safe_text_series(df, column).str.contains(
+                    query,
+                    regex=False,
+                )
+
+        df = df[mask]
+
+    if category and "category" in df.columns:
+        df = df[_safe_text_series(df, "category") == category]
+
+    if location and "location" in df.columns:
+        df = df[_safe_text_series(df, "location") == location]
+
+    return df_to_records(df)

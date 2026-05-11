@@ -10,3 +10,22 @@
 2026-05-11 21:08:32,365 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-11 21:08:36,731 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-11 21:08:45,244 | INFO | mcp.server.lowlevel.server | Processing request of type ListPromptsRequest
+2026-05-11 21:10:10,238 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 21:10:12,547 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-11 21:10:13,372 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-11 21:10:15,571 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 21:10:40,602 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:11:21,376 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:11:26,633 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:11:36,032 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:11:40,964 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 21:12:02,109 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:12:22,479 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:12:43,313 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 21:15:19,217 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:17:11,874 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:29:14,991 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-11 21:29:18,550 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-11 21:29:29,358 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:29:54,696 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-11 21:30:55,559 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
