@@ -1,2 +1,5 @@
 python -m grocery_assistant_mcp.stdio_server
 
+-m grocery_assistant_mcp.stdio_server
+
+.\.venv\Scripts\python.exe
