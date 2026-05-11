@@ -6,3 +6,4 @@ uvicorn[standard]
 fastapi-mcp
 feedparser
 matplotlib
+pytest
