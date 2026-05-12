@@ -13,3 +13,4 @@ def register_inventory_resources(mcp: FastMCP) -> None:
     def inventory_resource() -> str:
         """Current grocery inventory."""
         return to_json(df_to_records(read_inventory()))
+    
