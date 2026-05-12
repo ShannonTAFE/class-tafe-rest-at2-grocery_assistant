@@ -92,3 +92,21 @@
 2026-05-12 17:18:15,530 | INFO | mcp.server.lowlevel.server | Processing request of type ListPromptsRequest
 2026-05-12 17:18:18,217 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-12 17:18:49,409 | INFO | mcp.server.lowlevel.server | Processing request of type GetPromptRequest
+2026-05-12 18:02:48,577 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-12 18:06:20,298 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-12 18:06:20,416 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-12 18:07:04,270 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: e08f0ec8c2dc4b18958ab04bdb091548
+2026-05-12 18:07:16,416 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-12 18:08:18,390 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-12 18:08:18,444 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-12 18:09:35,140 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: 77a0280f661e42879e781d426f9a0d19
+2026-05-12 18:09:39,225 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-12 18:09:42,045 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-12 18:09:46,161 | INFO | mcp.server.lowlevel.server | Processing request of type ListPromptsRequest
+2026-05-12 18:17:15,133 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-12 18:17:27,736 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-12 18:19:45,662 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-12 18:19:48,324 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-12 18:21:10,309 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-12 18:21:15,745 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-12 18:21:29,358 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
