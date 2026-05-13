@@ -19,3 +19,6 @@ python -m grocery_assistant_mcp.streamable_http_server
 Connect with MCP Inspector
 Transport: Streamable HTTP
 URL: http://127.0.0.1:8000/mcp
+
+
+test change
