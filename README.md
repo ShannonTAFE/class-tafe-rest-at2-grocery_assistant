@@ -456,6 +456,441 @@ A browser request to `/` may return `404 Not Found`. This does not necessarily m
 
 ---
 
+## Testing with Curl over Streamable HTTP
+
+Curl can be used as a simple manual MCP client for testing the Streamable HTTP server without relying on MCP Inspector or a full MCP host. This is useful for confirming the raw MCP request and response flow.
+
+Curl testing is especially useful for checking:
+
+* Whether the `/mcp` endpoint accepts valid MCP JSON-RPC requests
+* Whether the server initializes correctly
+* Whether the server returns and accepts an `mcp-session-id`
+* Whether resources, tools, and prompts are listed correctly
+* Whether individual resources can be read through their MCP URIs
+* Whether future write tools can be tested safely and repeatably
+
+### Important Curl Testing Concepts
+
+MCP Streamable HTTP requests use JSON-RPC messages sent to the `/mcp` endpoint.
+
+A normal browser request such as:
+
+```text
+GET /mcp
+```
+
+may return `406 Not Acceptable`. This does not necessarily mean the server is broken. The MCP endpoint expects a valid MCP JSON-RPC request with appropriate HTTP headers.
+
+The normal curl testing lifecycle is:
+
+```text
+1. Send initialize request
+2. Copy the returned mcp-session-id response header
+3. Send notifications/initialized using that session ID
+4. Send resources/list, resources/read, tools/list, tools/call, prompts/list, or prompts/get using the same session ID
+```
+
+The difference between the JSON-RPC request ID and the MCP session ID is important:
+
+```text
+JSON-RPC id:
+- included inside the JSON body
+- changes for each request
+- matches a response to a specific request
+
+mcp-session-id:
+- included as an HTTP header
+- usually stays the same for the initialized MCP session
+- tells the server which initialized client session the request belongs to
+```
+
+### Suggested Curl Test Folder
+
+A useful project structure for curl testing is:
+
+```text
+grocery-assistant-mcp/
+│
+├── curl_requests/
+│   ├── 01_initialize.json
+│   ├── 02_initialized_notification.json
+│   ├── 03_resources_list.json
+│   ├── 04_read_inventory.json
+│   ├── 05_read_intake_history.json
+│   ├── 06_read_intake_items.json
+│   ├── 07_tools_list.json
+│   └── 08_prompts_list.json
+│
+├── src/
+│   └── grocery_assistant_mcp/
+│
+├── README.md
+└── pyproject.toml
+```
+
+Run curl commands from the folder that contains the `curl_requests` directory. If the terminal is in a different folder, either change directory first or use a full file path.
+
+Example:
+
+```powershell
+cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
+```
+
+### 1. Initialize the MCP Session
+
+Create:
+
+```text
+curl_requests/01_initialize.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "grocery-curl-client",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+Run:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" --data-binary "@curl_requests/01_initialize.json"
+```
+
+A successful response should return `HTTP/1.1 200 OK` and an `mcp-session-id` header.
+
+Example response header:
+
+```text
+mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e
+```
+
+Copy this value and reuse it in later requests.
+
+The response body may use Server-Sent Events formatting:
+
+```text
+event: message
+data: {"jsonrpc":"2.0","id":1,"result":{...}}
+```
+
+The useful JSON-RPC response is inside the `data:` line.
+
+### 2. Send the Initialized Notification
+
+Create:
+
+```text
+curl_requests/02_initialized_notification.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+```
+
+Run, replacing the session ID with the value returned by the initialize response:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/02_initialized_notification.json"
+```
+
+This completes the MCP setup lifecycle for the curl client.
+
+### 3. List MCP Resources
+
+Create:
+
+```text
+curl_requests/03_resources_list.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "resources/list"
+}
+```
+
+Run:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/03_resources_list.json"
+```
+
+Expected Version 1 resources include:
+
+```text
+grocery://inventory
+grocery://intake-history
+grocery://intake-items
+```
+
+This confirms that the MCP resource registration is working.
+
+### 4. Read the Inventory Resource
+
+Create:
+
+```text
+curl_requests/04_read_inventory.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "resources/read",
+  "params": {
+    "uri": "grocery://inventory"
+  }
+}
+```
+
+Run:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/04_read_inventory.json"
+```
+
+This confirms the full read path:
+
+```text
+curl request
+→ Streamable HTTP MCP endpoint
+→ MCP resources/read method
+→ grocery://inventory resource
+→ CSV-backed inventory data
+→ JSON-RPC response
+```
+
+### 5. Read Intake Resources
+
+Create:
+
+```text
+curl_requests/05_read_intake_history.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/read",
+  "params": {
+    "uri": "grocery://intake-history"
+  }
+}
+```
+
+Create:
+
+```text
+curl_requests/06_read_intake_items.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/read",
+  "params": {
+    "uri": "grocery://intake-items"
+  }
+}
+```
+
+Run each file with the same curl pattern:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/05_read_intake_history.json"
+```
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/06_read_intake_items.json"
+```
+
+### 6. List MCP Tools
+
+Create:
+
+```text
+curl_requests/07_tools_list.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/list"
+}
+```
+
+Run:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/07_tools_list.json"
+```
+
+Expected Version 1 tools include:
+
+```text
+search_inventory
+get_recent_intake
+get_daily_intake_summary
+```
+
+This confirms that the MCP tool registration is working.
+
+### 7. List MCP Prompts
+
+Create:
+
+```text
+curl_requests/08_prompts_list.json
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "prompts/list"
+}
+```
+
+Run:
+
+```powershell
+curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/08_prompts_list.json"
+```
+
+Expected Version 1 prompts include:
+
+```text
+summarise_inventory
+find_inventory_items
+suggest_meals_from_inventory
+review_recent_intake
+review_daily_intake
+suggest_next_meal
+```
+
+### Reading Curl Output More Cleanly
+
+Streamable HTTP responses may be returned as `text/event-stream`. In that case, the MCP response is wrapped like this:
+
+```text
+event: message
+data: {"jsonrpc":"2.0","id":3,"result":{...}}
+```
+
+For resource reads, the resource content is usually inside:
+
+```text
+result.contents[0].text
+```
+
+If the resource content is JSON text, it may appear escaped in the raw terminal output. This is expected.
+
+A PowerShell-only way to display the inventory resource as a cleaner table is:
+
+```powershell
+$response = curl.exe -s -X POST "http://127.0.0.1:8000/mcp" `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" `
+  --data-binary "@curl_requests/04_read_inventory.json"
+
+$jsonLine = ($response | Select-String "^data: ").ToString().Replace("data: ", "")
+$mcpJson = $jsonLine | ConvertFrom-Json
+$inventoryText = $mcpJson.result.contents[0].text
+$inventory = $inventoryText | ConvertFrom-Json
+$inventory | Format-Table stock_id, food_item, quantity, unit, servings_remaining, stock_status, expiry_date
+```
+
+The cleaned output is easier to inspect than the raw escaped JSON string.
+
+### Common Curl Testing Issues
+
+#### File Not Found
+
+If curl returns:
+
+```text
+curl: Failed to open curl_requests/01_initialize.json
+```
+
+then the terminal is not currently in the folder that contains `curl_requests`, or the file has not been created.
+
+Check the current folder:
+
+```powershell
+pwd
+```
+
+Check whether the request file exists:
+
+```powershell
+dir curl_requests
+```
+
+#### Invalid JSON Parse Error
+
+If the server returns a JSON parse error, use request files with `--data-binary` instead of typing large JSON bodies directly into PowerShell.
+
+Recommended pattern:
+
+```powershell
+--data-binary "@curl_requests/01_initialize.json"
+```
+
+This avoids quoting problems where PowerShell changes how JSON is passed to curl.
+
+#### Browser 404 or 406 Responses
+
+A browser request to `/` may return `404 Not Found`.
+
+A browser request to `/mcp` may return `406 Not Acceptable`.
+
+These responses do not necessarily mean the MCP server is broken. The `/mcp` endpoint expects proper MCP JSON-RPC requests, not normal browser page requests.
+
+### Curl Testing Checklist
+
+A useful Version 1 curl test sequence is:
+
+```text
+1. Start the Streamable HTTP server.
+2. Send 01_initialize.json.
+3. Copy the returned mcp-session-id.
+4. Send 02_initialized_notification.json with the session ID.
+5. Send 03_resources_list.json.
+6. Confirm grocery://inventory, grocery://intake-history, and grocery://intake-items are listed.
+7. Send 04_read_inventory.json.
+8. Confirm inventory CSV data is returned.
+9. Send 05_read_intake_history.json.
+10. Send 06_read_intake_items.json.
+11. Send 07_tools_list.json.
+12. Confirm read-only tools are listed.
+13. Send 08_prompts_list.json.
+14. Confirm inventory and intake prompts are listed.
+```
+
+This gives a repeatable manual test path for the Version 1 MCP server.
+
+---
+
 ## Testing with MCP Inspector
 
 MCP Inspector can be used as a local testing client for Version 1.
