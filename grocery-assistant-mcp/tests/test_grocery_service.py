@@ -11,7 +11,8 @@ from grocery_assistant_mcp.core.grocery_service import (
     to_json,
     list_inventory_items,
     find_inventory_item,
-    summarise_intake_day,
+    get_daily_intake_summary,
+    get_recent_intake,
 )
 
 
@@ -150,8 +151,8 @@ def test_find_inventory_item_results_contain_search_term_when_found():
         assert search_term in searchable_text
 
 
-def test_summarise_intake_day_returns_expected_structure():
-    summary = summarise_intake_day("2026-01-01")
+def test_get_daily_intake_summary_returns_expected_structure():
+    summary = get_daily_intake_summary("2026-01-01")
 
     assert isinstance(summary, dict)
     assert "date" in summary
@@ -162,8 +163,8 @@ def test_summarise_intake_day_returns_expected_structure():
     assert "nutrition_totals" in summary
 
 
-def test_summarise_intake_day_has_numeric_nutrition_totals():
-    summary = summarise_intake_day("2026-01-01")
+def test_get_daily_intake_summary_has_numeric_nutrition_totals():
+    summary = get_daily_intake_summary("2026-01-01")
 
     expected_columns = {
         "calories_estimate",

@@ -7,7 +7,7 @@ from grocery_assistant_mcp.core.grocery_service import (
     read_intake_history,
     read_intake_items,
     read_inventory,
-    summarise_intake_day,
+    get_daily_intake_summary,
     to_json,
 )
 
@@ -96,8 +96,8 @@ def test_find_inventory_item_payload_is_valid_json():
     assert isinstance(parsed, list)
 
 
-def test_summarise_intake_day_payload_is_valid_json():
-    summary = summarise_intake_day("2026-01-01")
+def test_get_daily_intake_summary_payload_is_valid_json():
+    summary = get_daily_intake_summary("2026-01-01")
     payload = to_json(summary)
 
     parsed = json.loads(payload)
@@ -109,8 +109,8 @@ def test_summarise_intake_day_payload_is_valid_json():
     assert "nutrition_totals" in parsed
 
 
-def test_summarise_intake_day_payload_has_client_friendly_sections():
-    summary = summarise_intake_day("2026-01-01")
+def test_get_daily_intake_summary_payload_has_client_friendly_sections():
+    summary = get_daily_intake_summary("2026-01-01")
     payload = to_json(summary)
 
     parsed = json.loads(payload)
