@@ -6,6 +6,8 @@ from pydantic import Field
 from grocery_assistant_mcp.core import grocery_service
 from grocery_assistant_mcp.core.grocery_service import (
     add_inventory_item as add_inventory_item_service,
+    update_inventory_item as update_inventory_item_service,
+
 )
 
 
@@ -121,6 +123,48 @@ def register_inventory_tools(mcp: FastMCP) -> None:
         an item as consumed, or correct an existing inventory row.
         """
         return add_inventory_item_service(
+            food_item=food_item,
+            brand=brand,
+            category=category,
+            location=location,
+            quantity=quantity,
+            unit=unit,
+            servings_remaining=servings_remaining,
+            stock_status=stock_status,
+            expiry_date=expiry_date,
+            notes=notes,
+        )
+    @mcp.tool()
+    def update_inventory_item(
+        stock_id: str,
+        food_item: str | None = None,
+        brand: str | None = None,
+        category: str | None = None,
+        location: str | None = None,
+        quantity: float | None = None,
+        unit: str | None = None,
+        servings_remaining: float | None = None,
+        stock_status: str | None = None,
+        expiry_date: str | None = None,
+        notes: str | None = None,
+    ) -> dict:
+        """
+        Update an existing inventory item by stock_id.
+
+        Only fields provided by the caller are updated.
+        Fields left as None are not changed.
+
+        Use this tool when the user wants to:
+        - correct an inventory item
+        - change quantity or servings remaining
+        - update stock status
+        - update expiry date
+        - move an item to a different location
+        - add or clear notes
+        """
+
+        return update_inventory_item_service(
+            stock_id=stock_id,
             food_item=food_item,
             brand=brand,
             category=category,

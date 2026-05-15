@@ -16,5 +16,4 @@ inv_014,Rice,SunRice,pantry,cupboard,1.0,bag,5.0,ok,2026-12-01,Jasmine rice
 inv_015,Greek yoghurt,Chobani,dairy,fridge,1.0,tub,4.0,ok,2026-05-20,Plain yoghurt
 inv_016,Milk,Brownes,dairy,fridge,1.0,bottle,4.0,ok,2026-05-18,Full cream
 inv_017,Pasta,San Remo,pantry,cupboard,1.0,packet,5.0,ok,2026-12-01,Spaghetti
-inv_018,bread,Tip Top,bakery,freezer,1.0,loaf,8.0,ok,2026-05-19,Wholemeal
-inv_019,banana,,fruit,Countertop,5.0,,3.0,ok,,
+inv_018,Bread,Tip Top,bakery,pantry,1.0,loaf,8.0,ok,2026-05-19,Wholemeal
