@@ -20,7 +20,6 @@ from grocery_assistant_mcp.core.write_helpers import (
     validate_date_or_blank,
     validate_non_negative_number,
 )
-from grocery_assistant_mcp.utils.paths import INVENTORY_PATH
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
 
@@ -503,5 +502,106 @@ def add_inventory_item(
         "success": True,
         "message": "Inventory item added.",
         "item": new_item,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+def update_inventory_item(
+    stock_id: str,
+    food_item: str | None = None,
+    brand: str | None = None,
+    category: str | None = None,
+    location: str | None = None,
+    quantity: float | None = None,
+    unit: str | None = None,
+    servings_remaining: float | None = None,
+    stock_status: str | None = None,
+    expiry_date: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """
+    Update an existing item in the inventory CSV.
+
+    This function:
+    - validates the stock_id
+    - finds the existing inventory row
+    - validates only the fields being updated
+    - backs up the inventory CSV
+    - updates only fields that are not None
+    - saves the updated CSV
+    - returns the updated item
+    """
+
+    require_non_empty(stock_id, "stock_id")
+
+    updates = {
+        "food_item": food_item,
+        "brand": brand,
+        "category": category,
+        "location": location,
+        "quantity": quantity,
+        "unit": unit,
+        "servings_remaining": servings_remaining,
+        "stock_status": stock_status,
+        "expiry_date": expiry_date,
+        "notes": notes,
+    }
+
+    updates = {
+        field: value
+        for field, value in updates.items()
+        if value is not None
+    }
+
+    if not updates:
+        raise ValueError("At least one field must be provided to update.")
+
+    if "food_item" in updates:
+        require_non_empty(updates["food_item"], "food_item")
+
+    if "quantity" in updates:
+        validate_non_negative_number(updates["quantity"], "quantity")
+
+    if "servings_remaining" in updates:
+        validate_non_negative_number(
+            updates["servings_remaining"],
+            "servings_remaining",
+        )
+
+    if "expiry_date" in updates:
+        validate_date_or_blank(updates["expiry_date"], "expiry_date")
+
+    allowed_statuses = {"ok", "low", "empty", "used", "expired", "removed"}
+
+    if "stock_status" in updates:
+        if updates["stock_status"] not in allowed_statuses:
+            raise ValueError(
+                f"stock_status must be one of: {', '.join(sorted(allowed_statuses))}"
+            )
+
+    df = read_csv_for_write(INVENTORY_PATH, INVENTORY_COLUMNS)
+
+    matching_rows = df.index[df["stock_id"].astype(str) == stock_id].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No inventory item found with stock_id: {stock_id}")
+
+    row_index = matching_rows[0]
+
+    backup_path = backup_csv(INVENTORY_PATH)
+
+    for field, value in updates.items():
+        if isinstance(value, str):
+            value = value.strip()
+
+        df.at[row_index, field] = value
+
+    save_csv(df, INVENTORY_PATH)
+
+    updated_item = df.loc[row_index].fillna("").to_dict()
+
+    return {
+        "success": True,
+        "message": "Inventory item updated.",
+        "item": updated_item,
         "backup_created": str(backup_path) if backup_path else None,
     }

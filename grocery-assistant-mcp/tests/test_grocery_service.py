@@ -1,7 +1,9 @@
 import json
 
 import pandas as pd
+import pytest
 
+from grocery_assistant_mcp.core import grocery_service
 from grocery_assistant_mcp.core.grocery_service import (
     read_csv_file,
     read_inventory,
@@ -13,7 +15,27 @@ from grocery_assistant_mcp.core.grocery_service import (
     find_inventory_item,
     get_daily_intake_summary,
     get_recent_intake,
+    add_inventory_item,
+    update_inventory_item,
+
 )
+
+@pytest.fixture
+def temp_inventory_csv(tmp_path, monkeypatch):
+    """
+    Create a temporary inventory CSV for tests.
+
+    This prevents tests from writing to the real user_inventory.csv file.
+    """
+
+    temp_file = tmp_path / "user_inventory.csv"
+
+    empty_inventory = pd.DataFrame(columns=grocery_service.INVENTORY_COLUMNS)
+    empty_inventory.to_csv(temp_file, index=False)
+
+    monkeypatch.setattr(grocery_service, "INVENTORY_PATH", temp_file)
+
+    return temp_file
 
 
 def test_read_csv_file_returns_dataframe_for_existing_file(tmp_path):
@@ -182,3 +204,133 @@ def test_get_daily_intake_summary_has_numeric_nutrition_totals():
 
     for value in totals.values():
         assert isinstance(value, float)
+
+def test_update_inventory_item_updates_quantity(temp_inventory_csv):
+    created = add_inventory_item(
+        food_item="Rice",
+        brand="SunRice",
+        category="pantry",
+        location="cupboard",
+        quantity=1,
+        unit="bag",
+        servings_remaining=5,
+        stock_status="ok",
+        expiry_date="2026-12-01",
+        notes="Jasmine rice",
+    )
+
+    updated = update_inventory_item(
+        stock_id=created["item"]["stock_id"],
+        quantity=2,
+    )
+
+    assert updated["success"] is True
+    assert updated["item"]["stock_id"] == created["item"]["stock_id"]
+    assert updated["item"]["food_item"] == "Rice"
+    assert updated["item"]["quantity"] == 2
+    assert updated["item"]["brand"] == "SunRice"
+    assert updated["item"]["stock_status"] == "ok"
+    
+def test_update_inventory_item_updates_multiple_fields(temp_inventory_csv):
+    created = add_inventory_item(
+        food_item="Greek yoghurt",
+        brand="Chobani",
+        category="dairy",
+        location="fridge",
+        quantity=1,
+        unit="tub",
+        servings_remaining=4,
+        stock_status="ok",
+        expiry_date="2026-05-20",
+        notes="Plain yoghurt",
+    )
+
+    updated = update_inventory_item(
+        stock_id=created["item"]["stock_id"],
+        quantity=2,
+        servings_remaining=6,
+        stock_status="low",
+        notes="Bought another tub",
+    )
+
+    assert updated["success"] is True
+    assert updated["item"]["stock_id"] == created["item"]["stock_id"]
+    assert updated["item"]["quantity"] == 2
+    assert updated["item"]["servings_remaining"] == 6
+    assert updated["item"]["stock_status"] == "low"
+    assert updated["item"]["notes"] == "Bought another tub"
+
+    assert updated["item"]["food_item"] == "Greek yoghurt"
+    assert updated["item"]["brand"] == "Chobani"
+    assert updated["item"]["category"] == "dairy"
+    assert updated["item"]["location"] == "fridge" 
+
+def test_update_inventory_item_unknown_stock_id_raises_error(temp_inventory_csv):
+    with pytest.raises(ValueError, match="No inventory item found"):
+        update_inventory_item(
+            stock_id="inv_missing",
+            quantity=2,
+        )
+
+def test_update_inventory_item_requires_at_least_one_update_field(temp_inventory_csv):
+    created = add_inventory_item(
+        food_item="Milk",
+        brand="Brownes",
+        category="dairy",
+        location="fridge",
+        quantity=1,
+        unit="bottle",
+        servings_remaining=4,
+        stock_status="ok",
+        expiry_date="2026-05-18",
+        notes="Full cream",
+    )
+
+    with pytest.raises(ValueError, match="At least one field"):
+        update_inventory_item(
+            stock_id=created["item"]["stock_id"],
+        )
+
+def test_update_inventory_item_negative_quantity_raises_error(temp_inventory_csv):
+    created = add_inventory_item(
+        food_item="Pasta",
+        brand="San Remo",
+        category="pantry",
+        location="cupboard",
+        quantity=1,
+        unit="packet",
+        servings_remaining=5,
+        stock_status="ok",
+        expiry_date="2026-12-01",
+        notes="Spaghetti",
+    )
+
+    with pytest.raises(ValueError):
+        update_inventory_item(
+            stock_id=created["item"]["stock_id"],
+            quantity=-1,
+        )
+
+def test_update_inventory_item_can_clear_optional_text_field(temp_inventory_csv):
+    created = add_inventory_item(
+        food_item="Bread",
+        brand="Tip Top",
+        category="bakery",
+        location="pantry",
+        quantity=1,
+        unit="loaf",
+        servings_remaining=8,
+        stock_status="ok",
+        expiry_date="2026-05-19",
+        notes="Wholemeal",
+    )
+
+    updated = update_inventory_item(
+        stock_id=created["item"]["stock_id"],
+        brand="",
+        notes="",
+    )
+
+    assert updated["success"] is True
+    assert updated["item"]["brand"] == ""
+    assert updated["item"]["notes"] == ""
