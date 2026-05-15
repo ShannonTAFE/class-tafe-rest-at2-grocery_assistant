@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "add_inventory_item",
+    "arguments": {
+      "food_item": "Test negative quantity item",
+      "quantity": -1,
+      "unit": "item"
+    }
+  }
+}
