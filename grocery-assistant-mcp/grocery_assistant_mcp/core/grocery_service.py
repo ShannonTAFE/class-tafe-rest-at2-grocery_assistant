@@ -11,6 +11,17 @@ from grocery_assistant_mcp.utils.paths import (
     INTAKE_ITEMS_PATH,
 )
 
+from grocery_assistant_mcp.core.write_helpers import (
+    backup_csv,
+    generate_next_id,
+    read_csv_for_write,
+    require_non_empty,
+    save_csv,
+    validate_date_or_blank,
+    validate_non_negative_number,
+)
+from grocery_assistant_mcp.utils.paths import INVENTORY_PATH
+
 logger = logging.getLogger("grocery_mcp.grocery_data")
 
 INVENTORY_COLUMNS = [
@@ -427,3 +438,70 @@ def get_recent_intake(
     df = df.drop(columns=["_parsed_date"], errors="ignore")
 
     return df_to_records(df)
+
+
+def add_inventory_item(
+    food_item: str,
+    brand: str = "",
+    category: str = "",
+    location: str = "",
+    quantity: float = 0,
+    unit: str = "",
+    servings_remaining: float = 0,
+    stock_status: str = "ok",
+    expiry_date: str = "",
+    notes: str = "",
+) -> dict:
+    """
+    Add a new item to the inventory CSV.
+
+    This function:
+    - validates required fields
+    - generates a stock_id
+    - backs up the inventory CSV
+    - appends the new row
+    - saves the updated CSV
+    - returns the created item
+    """
+    require_non_empty(food_item, "food_item")
+    validate_non_negative_number(quantity, "quantity")
+    validate_non_negative_number(servings_remaining, "servings_remaining")
+    validate_date_or_blank(expiry_date, "expiry_date")
+
+    allowed_statuses = {"ok", "low", "empty", "used", "expired", "removed"}
+
+    if stock_status not in allowed_statuses:
+        raise ValueError(
+            f"stock_status must be one of: {', '.join(sorted(allowed_statuses))}"
+        )
+
+    df = read_csv_for_write(INVENTORY_PATH, INVENTORY_COLUMNS)
+
+    existing_ids = df["stock_id"].dropna().astype(str).tolist()
+    stock_id = generate_next_id(existing_ids, prefix="inv", width=3)
+
+    new_item = {
+        "stock_id": stock_id,
+        "food_item": food_item.strip(),
+        "brand": brand.strip(),
+        "category": category.strip(),
+        "location": location.strip(),
+        "quantity": quantity,
+        "unit": unit.strip(),
+        "servings_remaining": servings_remaining,
+        "stock_status": stock_status.strip(),
+        "expiry_date": expiry_date.strip(),
+        "notes": notes.strip(),
+    }
+
+    backup_path = backup_csv(INVENTORY_PATH)
+
+    updated_df = pd.concat([df, pd.DataFrame([new_item])], ignore_index=True)
+    save_csv(updated_df, INVENTORY_PATH)
+
+    return {
+        "success": True,
+        "message": "Inventory item added.",
+        "item": new_item,
+        "backup_created": str(backup_path) if backup_path else None,
+    }

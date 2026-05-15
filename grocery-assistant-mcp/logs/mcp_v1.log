@@ -180,3 +180,34 @@
 2026-05-15 16:43:41,867 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
 2026-05-15 16:43:43,328 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
 2026-05-15 16:44:49,122 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-15 17:13:26,223 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 17:13:26,273 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-15 17:14:52,530 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: 7ab88075d6744da99d21802e73b6b74a
+2026-05-15 17:16:07,729 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-15 17:16:44,004 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-15 17:17:11,441 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-15 17:25:40,966 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-15 17:25:54,623 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-15 17:26:37,016 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-15 17:29:42,550 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-15 17:29:47,186 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 17:29:47,248 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-15 17:52:47,853 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: db94bff490ea4c73ad422ebd2b7f11d1
+2026-05-15 17:53:25,440 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-15 17:54:21,280 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-15 17:58:52,574 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-15 18:08:04,990 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-15 18:08:20,106 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 18:08:20,174 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-15 18:09:34,033 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 18:09:34,091 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-15 18:10:55,523 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: a58eb1c1a80640d2a25f89ca64cf0b3a
+2026-05-15 18:12:21,090 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-15 18:12:48,523 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-15 19:34:32,717 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-15 19:34:47,480 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 19:34:47,569 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-15 19:35:43,671 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: 9b30fc9cf54a41709989d95ca82e1979
+2026-05-15 19:37:48,009 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-15 19:38:17,799 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-15 19:38:17,853 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started

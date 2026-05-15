@@ -1,0 +1,179 @@
+{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "result": {
+        "tools": [
+            {
+                "name": "search_inventory",
+                "description": "\nSearch the current grocery inventory.\n\nUse this tool when the user asks whether a specific food item is available,\nwants to find items in a category, or wants to check items stored in a\nparticular location.\n\nThis is a read-only tool. It does not add, update, remove, or consume\ninventory items.\n\nReturns matching inventory rows from user_inventory.csv.\n",
+                "inputSchema": {
+                    "properties": {
+                        "query": {
+                            "default": "",
+                            "description": "Optional text search across inventory item name, brand, and notes. Use this for searches like \"chicken\", \"oats\", \"pasta\", or \"use soon\". Leave blank when filtering only by category or location.",
+                            "title": "Query",
+                            "type": "string"
+                        },
+                        "category": {
+                            "default": "",
+                            "description": "Optional inventory category filter. Use broad categories such as \"pantry\", \"protein\", \"dairy\", \"vegetable\", \"fruit\", or \"snack\". Leave blank if category is not needed.",
+                            "title": "Category",
+                            "type": "string"
+                        },
+                        "location": {
+                            "default": "",
+                            "description": "Optional storage location filter. Use locations such as \"cupboard\", \"fridge\", \"freezer\", or \"pantry\". Leave blank if location is not needed.",
+                            "title": "Location",
+                            "type": "string"
+                        }
+                    },
+                    "title": "search_inventoryArguments",
+                    "type": "object"
+                },
+                "outputSchema": {
+                    "properties": {
+                        "result": {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "title": "Result",
+                            "type": "array"
+                        }
+                    },
+                    "required": [
+                        "result"
+                    ],
+                    "title": "search_inventoryOutput",
+                    "type": "object"
+                }
+            },
+            {
+                "name": "add_inventory_item",
+                "description": "\nAdd one new grocery inventory item.\n\nUse this when the user wants to record a new grocery item that is not\nalready represented in the inventory.\n\nThis tool creates a new inventory row and the service layer generates\nthe stock_id internally.\n\nDo not use this tool to update an existing item, reduce servings, mark\nan item as consumed, or correct an existing inventory row.\n",
+                "inputSchema": {
+                    "properties": {
+                        "food_item": {
+                            "description": "Name of the food item to add. Required. Example: \"Rolled oats\".",
+                            "title": "Food Item",
+                            "type": "string"
+                        },
+                        "brand": {
+                            "default": "",
+                            "description": "Brand name if known. Leave blank if unknown. Example: \"Uncle Tobys\".",
+                            "title": "Brand",
+                            "type": "string"
+                        },
+                        "category": {
+                            "default": "",
+                            "description": "Broad food category. Example: \"pantry\", \"protein\", \"dairy\", \"vegetable\", \"fruit\".",
+                            "title": "Category",
+                            "type": "string"
+                        },
+                        "location": {
+                            "default": "",
+                            "description": "Storage location. Example: \"cupboard\", \"fridge\", \"freezer\", \"pantry\".",
+                            "title": "Location",
+                            "type": "string"
+                        },
+                        "quantity": {
+                            "default": 0,
+                            "description": "Numeric amount of the item. Use with unit. Example: 1 for one bag, 500 for 500 g.",
+                            "title": "Quantity",
+                            "type": "number"
+                        },
+                        "unit": {
+                            "default": "",
+                            "description": "Unit for quantity. Example: \"bag\", \"packet\", \"g\", \"kg\", \"can\", \"item\".",
+                            "title": "Unit",
+                            "type": "string"
+                        },
+                        "servings_remaining": {
+                            "default": 0,
+                            "description": "Estimated number of usable servings remaining. Example: 10.",
+                            "title": "Servings Remaining",
+                            "type": "number"
+                        },
+                        "stock_status": {
+                            "default": "ok",
+                            "description": "Current inventory status. Use \"ok\", \"low\", \"empty\", \"used\", \"expired\", or \"removed\".",
+                            "title": "Stock Status",
+                            "type": "string"
+                        },
+                        "expiry_date": {
+                            "default": "",
+                            "description": "Expiry or use-by date in YYYY-MM-DD format. Leave blank if unknown.",
+                            "title": "Expiry Date",
+                            "type": "string"
+                        },
+                        "notes": {
+                            "default": "",
+                            "description": "Optional notes about the item. Example: \"Use soon\" or \"Added during grocery shop\".",
+                            "title": "Notes",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "food_item"
+                    ],
+                    "title": "add_inventory_itemArguments",
+                    "type": "object"
+                }
+            },
+            {
+                "name": "get_recent_intake",
+                "description": "\nGet recent food intake records from the user's intake history.\n\nArgs:\n    days_back: Number of days back from today to include.\n    meal_type: Optional filter such as breakfast, lunch, dinner, or snack.\n\nReturns:\n    A list of recent intake history records, newest first.\n",
+                "inputSchema": {
+                    "properties": {
+                        "days_back": {
+                            "default": 7,
+                            "title": "Days Back",
+                            "type": "integer"
+                        },
+                        "meal_type": {
+                            "default": "",
+                            "title": "Meal Type",
+                            "type": "string"
+                        }
+                    },
+                    "title": "get_recent_intakeArguments",
+                    "type": "object"
+                },
+                "outputSchema": {
+                    "properties": {
+                        "result": {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "title": "Result",
+                            "type": "array"
+                        }
+                    },
+                    "required": [
+                        "result"
+                    ],
+                    "title": "get_recent_intakeOutput",
+                    "type": "object"
+                }
+            },
+            {
+                "name": "get_daily_intake_summary",
+                "description": "\nGet all logged meals, food items, and calculated nutrition totals\nfor a specific date.\n\nArgs:\n    date: Date to summarise in YYYY-MM-DD format.\n\nReturns:\n    A dictionary containing:\n    - date\n    - meal_count\n    - item_count\n    - meals\n    - items\n    - nutrition_totals\n    - missing_nutrition_counts\n",
+                "inputSchema": {
+                    "properties": {
+                        "date": {
+                            "title": "Date",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "date"
+                    ],
+                    "title": "get_daily_intake_summaryArguments",
+                    "type": "object"
+                }
+            }
+        ]
+    }
+}

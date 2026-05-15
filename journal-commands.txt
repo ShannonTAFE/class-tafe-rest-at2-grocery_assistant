@@ -1,51 +1,252 @@
-stdio_server
-C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
+MCP Grocery Assistant Command Journal
+Project Root
+
+Most commands should be run from the project root:
+
+cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
+Run Tests
+
+Run the test suite:
+
+pytest -q
+
+Use this after making changes to service functions, tools, resources, or prompts.
+
+Run MCP Stdio Server
+Option 1: Run stdio server directly
+
+From the project root:
+
+python -m grocery_assistant_mcp.stdio_server
+Option 2: Run stdio server through MCP Inspector
+
+From the project root:
 
 npx @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
 
+This launches MCP Inspector and connects it to the stdio server.
 
-run tests 
-pytest -q 
+Run MCP Inspector Only
 
-mcp inspector
+To open MCP Inspector manually:
+
 npx @modelcontextprotocol/inspector
 
+Use this when you want to manually configure the connection inside the Inspector UI.
 
-Run the HTTP server
-From your project root:
+Run Streamable HTTP Server
+
+From the project root:
 
 python -m grocery_assistant_mcp.streamable_http_server
 
+Expected server URL:
 
-Connect with MCP Inspector
+http://127.0.0.1:8000/mcp
+
+A browser request to / may return 404 Not Found, and a browser request to /mcp may return 406 Not Acceptable. This is expected because /mcp expects MCP JSON-RPC requests, not normal browser page requests.
+
+Connect MCP Inspector to HTTP Server
+
+Use these settings in MCP Inspector:
+
 Transport: Streamable HTTP
 URL: http://127.0.0.1:8000/mcp
 
+Use this to test resources, tools, and prompts over HTTP.
 
-test change
+Curl Testing Notes
 
+Curl requests are stored in:
 
+curl_requests/
 
-mcp-session-id
-mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e
+Current request files:
 
-curl initialise request curl_requests/01_initialize.json
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" `
+01_initialize.json
+02_initialized_notification.json
+03_resources_list.json
+04_read_inventory.json
+05_tools_list.json
+06_prompts_list.json
+07_add_inventory_item.json
+MCP Session ID
+
+After running the initialize request, copy the returned session ID.
+
+Example:
+
+mcp-session-id: 7ab88075d6744da99d21802e73b6b74a
+
+For easier testing, store it in a PowerShell variable:
+
+$McpSessionId = "7ab88075d6744da99d21802e73b6b74a"
+$McpUrl = "http://127.0.0.1:8000/mcp"
+
+Then curl commands can use:
+
+-H "mcp-session-id: $McpSessionId"
+
+This avoids manually replacing the session ID in every command.
+
+Curl: Initialize MCP Session
+
+Request file:
+
+curl_requests/01_initialize.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
   -H "Content-Type: application/json" `
   -H "Accept: application/json, text/event-stream" `
   --data-binary "@curl_requests/01_initialize.json"
 
-send initialized notification
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/02_initialized_notification.json"
+Purpose:
 
-list resources
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/03_resources_list.json"
+Starts the MCP handshake and returns an mcp-session-id.
 
-read inventory
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/04_read_inventory.json"
+After this succeeds, copy the session ID and set:
 
-tools list
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/05_tools_list.json"
+$McpSessionId = "PASTE_SESSION_ID_HERE"
+Curl: Send Initialized Notification
 
-prompts list
-curl.exe -i -X POST "http://127.0.0.1:8000/mcp" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "mcp-session-id: 31f8ff0588604c3f9021baae3df88c0e" --data-binary "@curl_requests/06_prompts_list.json"
+Request file:
+
+curl_requests/02_initialized_notification.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/02_initialized_notification.json"
+
+Purpose:
+
+Completes the MCP initialization lifecycle.
+Curl: List Resources
+
+Request file:
+
+curl_requests/03_resources_list.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/03_resources_list.json"
+
+Purpose:
+
+Confirms registered MCP resources are visible.
+
+Expected resources:
+
+grocery://inventory
+grocery://intake-history
+grocery://intake-items
+Curl: Read Inventory Resource
+
+Request file:
+
+curl_requests/04_read_inventory.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/04_read_inventory.json"
+
+Purpose:
+
+Reads the current inventory resource through MCP.
+
+This confirms:
+
+CSV data
+→ grocery service
+→ MCP resource
+→ Streamable HTTP response
+Curl: List Tools
+
+Request file:
+
+curl_requests/05_tools_list.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/05_tools_list.json"
+
+Purpose:
+
+Confirms registered MCP tools are visible.
+
+Expected Version 1 / Version 1.1 tools currently include:
+
+search_inventory
+add_inventory_item
+get_recent_intake
+get_daily_intake_summary
+Curl: List Prompts
+
+Request file:
+
+curl_requests/06_prompts_list.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/06_prompts_list.json"
+
+Purpose:
+
+Confirms registered MCP prompts are visible.
+
+Expected prompts may include:
+
+summarise_inventory
+find_inventory_items
+suggest_meals_from_inventory
+review_recent_intake
+review_daily_intake
+suggest_next_meal
+Curl: Add Inventory Item
+
+Request file:
+
+curl_requests/07_add_inventory_item.json
+
+Command:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/07_add_inventory_item.json"
+
+Purpose:
+
+Tests the Version 1.1 write tool for adding a new inventory item.
+
+After running this command, confirm the item was added by reading the inventory again:
+
+curl.exe -i -X POST $McpUrl `
+  -H "Content-Type: application/json" `
+  -H "Accept: application/json, text/event-stream" `
+  -H "mcp-session-id: $McpSessionId" `
+  --data-binary "@curl_requests/04_read_inventory.json"
+
+Also confirm that a CSV backup was created before the write.
