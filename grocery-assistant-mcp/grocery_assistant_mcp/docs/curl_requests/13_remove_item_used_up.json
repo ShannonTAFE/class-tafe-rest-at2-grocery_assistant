@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "remove_inventory_item",
+    "arguments": {
+      "stock_id": "inv_002",
+      "removal_type": "used_up",
+      "removal_reason": "Finished normally"
+    }
+  }
+}

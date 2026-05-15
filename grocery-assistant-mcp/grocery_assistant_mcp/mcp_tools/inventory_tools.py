@@ -2,11 +2,13 @@ from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+from typing import Optional
 
 from grocery_assistant_mcp.core import grocery_service
 from grocery_assistant_mcp.core.grocery_service import (
     add_inventory_item as add_inventory_item_service,
     update_inventory_item as update_inventory_item_service,
+    remove_inventory_item as remove_inventory_item_service,
 
 )
 
@@ -174,5 +176,50 @@ def register_inventory_tools(mcp: FastMCP) -> None:
             servings_remaining=servings_remaining,
             stock_status=stock_status,
             expiry_date=expiry_date,
+            notes=notes,
+        )
+    @mcp.tool()
+    def remove_inventory_item(
+        stock_id: str,
+        removal_type: str = "unknown",
+        removal_reason: str = "",
+        quantity_wasted: Optional[float] = None,
+        servings_wasted: Optional[float] = None,
+        tracking_confidence: str = "medium",
+        notes: str = "",
+    ) -> dict:
+        """
+        Remove an item from active inventory.
+
+        Use this when the user says an item should leave active inventory,
+        including when it was used up, expired, spoiled, discarded, duplicated,
+        incorrectly added, or no longer available.
+
+        This tool records a food waste entry only when removal_type is one of:
+        - expired
+        - spoiled
+        - discarded
+        - unused
+        - overbought
+        - did_not_like
+
+        This tool does not record food waste when removal_type is one of:
+        - used_up
+        - duplicate_entry
+        - incorrect_entry
+        - test_entry
+        - unknown
+
+        If quantity_wasted or servings_wasted are not supplied for a waste-type
+        removal, the service uses the item's current remaining quantity and
+        servings as the estimated wasted amount.
+        """
+        return remove_inventory_item_service(
+            stock_id=stock_id,
+            removal_type=removal_type,
+            removal_reason=removal_reason,
+            quantity_wasted=quantity_wasted,
+            servings_wasted=servings_wasted,
+            tracking_confidence=tracking_confidence,
             notes=notes,
         )

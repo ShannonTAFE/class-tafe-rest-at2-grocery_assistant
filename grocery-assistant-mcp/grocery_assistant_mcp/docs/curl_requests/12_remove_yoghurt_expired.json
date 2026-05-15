@@ -1,0 +1,17 @@
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "remove_inventory_item",
+    "arguments": {
+      "stock_id": "inv_001",
+      "removal_type": "expired",
+      "removal_reason": "Expired before I finished it",
+      "quantity_wasted": 150,
+      "servings_wasted": 1.5,
+      "tracking_confidence": "medium",
+      "notes": "Most of the tub was used"
+    }
+  }
+}

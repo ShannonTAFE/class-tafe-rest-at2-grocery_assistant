@@ -259,3 +259,16 @@
 2026-05-15 23:52:24,644 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-15 23:55:02,855 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-15 23:56:20,994 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-16 01:59:19,212 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 01:59:23,482 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 01:59:27,710 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 01:59:31,940 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 02:03:36,256 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 02:03:39,228 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-16 02:03:44,181 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-16 02:03:46,897 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-16 02:03:51,471 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourceTemplatesRequest
+2026-05-16 02:03:59,042 | INFO | mcp.server.lowlevel.server | Processing request of type ReadResourceRequest
+2026-05-16 02:04:07,794 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest
+2026-05-16 02:04:19,155 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 02:04:21,045 | INFO | mcp.server.lowlevel.server | Processing request of type ListResourcesRequest

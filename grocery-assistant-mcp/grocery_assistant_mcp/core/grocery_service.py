@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
-from pathlib import Path
 from datetime import date, timedelta
+from pathlib import Path
 
 import pandas as pd
 
@@ -9,6 +11,7 @@ from grocery_assistant_mcp.utils.paths import (
     INVENTORY_PATH,
     INTAKE_HISTORY_PATH,
     INTAKE_ITEMS_PATH,
+    FOOD_WASTE_PATH,
 )
 
 from grocery_assistant_mcp.core.write_helpers import (
@@ -23,6 +26,11 @@ from grocery_assistant_mcp.core.write_helpers import (
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
 
+
+# ---------------------------------------------------------------------
+# CSV schemas
+# ---------------------------------------------------------------------
+
 INVENTORY_COLUMNS = [
     "stock_id",
     "food_item",
@@ -32,10 +40,129 @@ INVENTORY_COLUMNS = [
     "quantity",
     "unit",
     "servings_remaining",
+    "initial_quantity",
+    "initial_servings",
     "stock_status",
     "expiry_date",
+    "date_added",
     "notes",
 ]
+
+FOOD_WASTE_COLUMNS = [
+    "waste_id",
+    "stock_id",
+    "food_item",
+    "brand",
+    "category",
+    "location",
+    "initial_quantity",
+    "initial_unit",
+    "initial_servings",
+    "quantity_wasted",
+    "unit",
+    "servings_wasted",
+    "estimated_quantity_consumed",
+    "estimated_servings_consumed",
+    "date_added",
+    "expiry_date",
+    "wasted_at",
+    "waste_type",
+    "waste_reason",
+    "tracking_confidence",
+    "notes",
+]
+
+
+# ---------------------------------------------------------------------
+# Valid values
+# ---------------------------------------------------------------------
+
+VALID_STOCK_STATUSES = {
+    "ok",
+    "low",
+    "very low",
+    "empty",
+    "out",
+    "used",
+    "expired",
+    "removed",
+}
+
+VALID_REMOVAL_TYPES = {
+    "used_up",
+    "expired",
+    "spoiled",
+    "discarded",
+    "unused",
+    "overbought",
+    "did_not_like",
+    "duplicate_entry",
+    "incorrect_entry",
+    "test_entry",
+    "unknown",
+}
+
+WASTE_REMOVAL_TYPES = {
+    "expired",
+    "spoiled",
+    "discarded",
+    "unused",
+    "overbought",
+    "did_not_like",
+}
+
+VALID_TRACKING_CONFIDENCE = {
+    "low",
+    "medium",
+    "high",
+}
+
+
+# ---------------------------------------------------------------------
+# Small service helpers
+# ---------------------------------------------------------------------
+
+def today_iso() -> str:
+    """Return today's date in YYYY-MM-DD format."""
+    return date.today().isoformat()
+
+
+def to_float(value: object, default: float = 0.0) -> float:
+    """
+    Convert a CSV value to float.
+
+    Blank, missing, or invalid values return the supplied default.
+    """
+    if value is None:
+        return default
+
+    if str(value).strip() == "":
+        return default
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def validate_choice(value: object, valid_values: set[str], field_name: str) -> str:
+    """
+    Normalize and validate a string choice.
+
+    Returns the cleaned lowercase value.
+    """
+    cleaned = str(value or "").strip().lower()
+
+    if cleaned not in valid_values:
+        allowed = ", ".join(sorted(valid_values))
+        raise ValueError(f"{field_name} must be one of: {allowed}")
+
+    return cleaned
+
+
+# ---------------------------------------------------------------------
+# Read helpers and read-only service functions
+# ---------------------------------------------------------------------
 
 
 def read_csv_file(path: Path) -> pd.DataFrame:
@@ -54,11 +181,20 @@ def read_csv_file(path: Path) -> pd.DataFrame:
 
 def read_inventory() -> pd.DataFrame:
     """
-    Read the inventory CSV.
+    Read the active inventory CSV.
 
     This backs the grocery://inventory MCP resource.
     """
     return read_csv_file(INVENTORY_PATH)
+
+
+def read_food_waste() -> pd.DataFrame:
+    """
+    Read the food waste CSV.
+
+    This can back a future grocery://food-waste MCP resource.
+    """
+    return read_csv_file(FOOD_WASTE_PATH)
 
 
 def read_intake_history() -> pd.DataFrame:
@@ -114,7 +250,7 @@ def list_inventory_items(
     low_stock_only: bool = False,
 ) -> list[dict]:
     """
-    Return inventory items.
+    Return active inventory items.
 
     Optional filters:
     - category
@@ -129,15 +265,45 @@ def list_inventory_items(
         df = df[_safe_text_series(df, "category") == category.lower()]
 
     if low_stock_only and "stock_status" in df.columns:
-        low_statuses = ["low", "very low", "empty"]
+        low_statuses = ["low", "very low", "empty", "out"]
         df = df[_safe_text_series(df, "stock_status").isin(low_statuses)]
+
+    return df_to_records(df)
+
+
+def list_food_waste_items(
+    waste_type: str = "",
+    category: str = "",
+) -> list[dict]:
+    """
+    Return food waste records.
+
+    Optional filters:
+    - waste_type
+    - category
+
+    This is useful for a future MCP resource or read-only tool.
+    """
+    df = read_food_waste()
+
+    if df.empty:
+        return []
+
+    waste_type = waste_type.strip().lower()
+    category = category.strip().lower()
+
+    if waste_type and "waste_type" in df.columns:
+        df = df[_safe_text_series(df, "waste_type") == waste_type]
+
+    if category and "category" in df.columns:
+        df = df[_safe_text_series(df, "category") == category]
 
     return df_to_records(df)
 
 
 def find_inventory_item(search_term: str) -> list[dict]:
     """
-    Search the inventory for an item.
+    Search the active inventory for an item.
 
     Searches:
     - food_item
@@ -324,13 +490,14 @@ def get_daily_intake_summary(date: str) -> dict:
         "missing_nutrition_counts": missing_nutrition_counts,
     }
 
+
 def search_inventory(
     query: str = "",
     category: str = "",
     location: str = "",
 ) -> list[dict]:
     """
-    Search the inventory by query, category, and location.
+    Search the active inventory by query, category, and location.
 
     Query searches across:
     - food_item
@@ -368,6 +535,7 @@ def search_inventory(
         df = df[_safe_text_series(df, "location") == location]
 
     return df_to_records(df)
+
 
 def get_recent_intake(
     days_back: int = 7,
@@ -439,6 +607,10 @@ def get_recent_intake(
     return df_to_records(df)
 
 
+# ---------------------------------------------------------------------
+# Inventory write service functions
+# ---------------------------------------------------------------------
+
 def add_inventory_item(
     food_item: str,
     brand: str = "",
@@ -452,11 +624,13 @@ def add_inventory_item(
     notes: str = "",
 ) -> dict:
     """
-    Add a new item to the inventory CSV.
+    Add a new item to the active inventory CSV.
 
     This function:
     - validates required fields
     - generates a stock_id
+    - records initial quantity and initial servings
+    - records date_added
     - backs up the inventory CSV
     - appends the new row
     - saves the updated CSV
@@ -467,17 +641,19 @@ def add_inventory_item(
     validate_non_negative_number(servings_remaining, "servings_remaining")
     validate_date_or_blank(expiry_date, "expiry_date")
 
-    allowed_statuses = {"ok", "low", "empty", "used", "expired", "removed"}
-
-    if stock_status not in allowed_statuses:
-        raise ValueError(
-            f"stock_status must be one of: {', '.join(sorted(allowed_statuses))}"
-        )
+    stock_status = validate_choice(
+        stock_status,
+        VALID_STOCK_STATUSES,
+        "stock_status",
+    )
 
     df = read_csv_for_write(INVENTORY_PATH, INVENTORY_COLUMNS)
 
     existing_ids = df["stock_id"].dropna().astype(str).tolist()
     stock_id = generate_next_id(existing_ids, prefix="inv", width=3)
+
+    quantity_value = float(quantity)
+    servings_value = float(servings_remaining)
 
     new_item = {
         "stock_id": stock_id,
@@ -485,11 +661,14 @@ def add_inventory_item(
         "brand": brand.strip(),
         "category": category.strip(),
         "location": location.strip(),
-        "quantity": quantity,
+        "quantity": quantity_value,
         "unit": unit.strip(),
-        "servings_remaining": servings_remaining,
-        "stock_status": stock_status.strip(),
+        "servings_remaining": servings_value,
+        "initial_quantity": quantity_value,
+        "initial_servings": servings_value,
+        "stock_status": stock_status,
         "expiry_date": expiry_date.strip(),
+        "date_added": today_iso(),
         "notes": notes.strip(),
     }
 
@@ -505,6 +684,7 @@ def add_inventory_item(
         "backup_created": str(backup_path) if backup_path else None,
     }
 
+
 def update_inventory_item(
     stock_id: str,
     food_item: str | None = None,
@@ -514,12 +694,15 @@ def update_inventory_item(
     quantity: float | None = None,
     unit: str | None = None,
     servings_remaining: float | None = None,
+    initial_quantity: float | None = None,
+    initial_servings: float | None = None,
     stock_status: str | None = None,
     expiry_date: str | None = None,
+    date_added: str | None = None,
     notes: str | None = None,
 ) -> dict:
     """
-    Update an existing item in the inventory CSV.
+    Update an existing item in the active inventory CSV.
 
     This function:
     - validates the stock_id
@@ -529,8 +712,12 @@ def update_inventory_item(
     - updates only fields that are not None
     - saves the updated CSV
     - returns the updated item
-    """
 
+    Note:
+    - initial_quantity, initial_servings, and date_added are included mainly
+      for corrections/migration. Normal day-to-day changes should usually
+      update quantity and servings_remaining instead.
+    """
     require_non_empty(stock_id, "stock_id")
 
     updates = {
@@ -541,8 +728,11 @@ def update_inventory_item(
         "quantity": quantity,
         "unit": unit,
         "servings_remaining": servings_remaining,
+        "initial_quantity": initial_quantity,
+        "initial_servings": initial_servings,
         "stock_status": stock_status,
         "expiry_date": expiry_date,
+        "date_added": date_added,
         "notes": notes,
     }
 
@@ -558,29 +748,35 @@ def update_inventory_item(
     if "food_item" in updates:
         require_non_empty(updates["food_item"], "food_item")
 
-    if "quantity" in updates:
-        validate_non_negative_number(updates["quantity"], "quantity")
-
-    if "servings_remaining" in updates:
-        validate_non_negative_number(
-            updates["servings_remaining"],
-            "servings_remaining",
-        )
+    for numeric_field in [
+        "quantity",
+        "servings_remaining",
+        "initial_quantity",
+        "initial_servings",
+    ]:
+        if numeric_field in updates:
+            validate_non_negative_number(updates[numeric_field], numeric_field)
+            updates[numeric_field] = float(updates[numeric_field])
 
     if "expiry_date" in updates:
         validate_date_or_blank(updates["expiry_date"], "expiry_date")
 
-    allowed_statuses = {"ok", "low", "empty", "used", "expired", "removed"}
+    if "date_added" in updates:
+        validate_date_or_blank(updates["date_added"], "date_added")
 
     if "stock_status" in updates:
-        if updates["stock_status"] not in allowed_statuses:
-            raise ValueError(
-                f"stock_status must be one of: {', '.join(sorted(allowed_statuses))}"
-            )
+        updates["stock_status"] = validate_choice(
+            updates["stock_status"],
+            VALID_STOCK_STATUSES,
+            "stock_status",
+        )
 
     df = read_csv_for_write(INVENTORY_PATH, INVENTORY_COLUMNS)
 
-    matching_rows = df.index[df["stock_id"].astype(str) == stock_id].tolist()
+    matching_rows = (
+        df.index[df["stock_id"].astype(str).str.strip() == stock_id.strip()]
+        .tolist()
+    )
 
     if not matching_rows:
         raise ValueError(f"No inventory item found with stock_id: {stock_id}")
@@ -604,4 +800,179 @@ def update_inventory_item(
         "message": "Inventory item updated.",
         "item": updated_item,
         "backup_created": str(backup_path) if backup_path else None,
+    }
+
+
+def remove_inventory_item(
+    stock_id: str,
+    removal_type: str = "unknown",
+    removal_reason: str = "",
+    quantity_wasted: float | None = None,
+    servings_wasted: float | None = None,
+    tracking_confidence: str = "medium",
+    notes: str = "",
+) -> dict:
+    """
+    Remove an item from active inventory.
+
+    If the removal type represents useful food waste behaviour, this function
+    creates a food waste record before removing the item from active inventory.
+
+    Waste records are created for:
+    - expired
+    - spoiled
+    - discarded
+    - unused
+    - overbought
+    - did_not_like
+
+    Waste records are not created for:
+    - used_up
+    - duplicate_entry
+    - incorrect_entry
+    - test_entry
+    - unknown
+    """
+    require_non_empty(stock_id, "stock_id")
+
+    removal_type = validate_choice(
+        removal_type,
+        VALID_REMOVAL_TYPES,
+        "removal_type",
+    )
+
+    tracking_confidence = validate_choice(
+        tracking_confidence,
+        VALID_TRACKING_CONFIDENCE,
+        "tracking_confidence",
+    )
+
+    df = read_csv_for_write(INVENTORY_PATH, INVENTORY_COLUMNS)
+
+    matching_rows = (
+        df.index[df["stock_id"].astype(str).str.strip() == stock_id.strip()]
+        .tolist()
+    )
+
+    if not matching_rows:
+        raise ValueError(f"No inventory item found with stock_id: {stock_id}")
+
+    row_index = matching_rows[0]
+    removed_item = df.loc[row_index].fillna("").to_dict()
+
+    waste_record_created = False
+    waste_record = None
+    waste_backup_path = None
+
+    if removal_type in WASTE_REMOVAL_TYPES:
+        current_quantity = to_float(removed_item.get("quantity"), 0.0)
+        current_servings = to_float(removed_item.get("servings_remaining"), 0.0)
+
+        initial_quantity = to_float(
+            removed_item.get("initial_quantity"),
+            current_quantity,
+        )
+        initial_servings = to_float(
+            removed_item.get("initial_servings"),
+            current_servings,
+        )
+
+        final_quantity_wasted = (
+            current_quantity
+            if quantity_wasted is None
+            else float(quantity_wasted)
+        )
+        final_servings_wasted = (
+            current_servings
+            if servings_wasted is None
+            else float(servings_wasted)
+        )
+
+        validate_non_negative_number(final_quantity_wasted, "quantity_wasted")
+        validate_non_negative_number(final_servings_wasted, "servings_wasted")
+
+        estimated_quantity_consumed = max(
+            initial_quantity - final_quantity_wasted,
+            0,
+        )
+        estimated_servings_consumed = max(
+            initial_servings - final_servings_wasted,
+            0,
+        )
+
+        waste_df = read_csv_for_write(FOOD_WASTE_PATH, FOOD_WASTE_COLUMNS)
+
+        existing_waste_ids = (
+            waste_df["waste_id"]
+            .dropna()
+            .astype(str)
+            .tolist()
+        )
+        waste_id = generate_next_id(
+            existing_waste_ids,
+            prefix="waste",
+            width=3,
+        )
+
+        waste_record = {
+            "waste_id": waste_id,
+            "stock_id": removed_item.get("stock_id", ""),
+            "food_item": removed_item.get("food_item", ""),
+            "brand": removed_item.get("brand", ""),
+            "category": removed_item.get("category", ""),
+            "location": removed_item.get("location", ""),
+            "initial_quantity": initial_quantity,
+            "initial_unit": removed_item.get("unit", ""),
+            "initial_servings": initial_servings,
+            "quantity_wasted": final_quantity_wasted,
+            "unit": removed_item.get("unit", ""),
+            "servings_wasted": final_servings_wasted,
+            "estimated_quantity_consumed": estimated_quantity_consumed,
+            "estimated_servings_consumed": estimated_servings_consumed,
+            "date_added": removed_item.get("date_added", ""),
+            "expiry_date": removed_item.get("expiry_date", ""),
+            "wasted_at": today_iso(),
+            "waste_type": removal_type,
+            "waste_reason": removal_reason.strip(),
+            "tracking_confidence": tracking_confidence,
+            "notes": notes.strip(),
+        }
+
+        waste_backup_path = backup_csv(FOOD_WASTE_PATH)
+        updated_waste_df = pd.concat(
+            [waste_df, pd.DataFrame([waste_record])],
+            ignore_index=True,
+        )
+        save_csv(updated_waste_df, FOOD_WASTE_PATH)
+        waste_record_created = True
+
+    inventory_backup_path = backup_csv(INVENTORY_PATH)
+
+    updated_inventory_df = df.drop(index=row_index).reset_index(drop=True)
+    save_csv(updated_inventory_df, INVENTORY_PATH)
+
+    if waste_record_created:
+        message = "Inventory item removed and a food waste record was created."
+    else:
+        message = (
+            "Inventory item removed from active inventory. "
+            "No food waste record was created for this removal type."
+        )
+
+    return {
+        "success": True,
+        "message": message,
+        "removed_item": removed_item,
+        "waste_record_created": waste_record_created,
+        "waste_record": waste_record,
+        "inventory_backup_created": (
+            str(inventory_backup_path)
+            if inventory_backup_path
+            else None
+        ),
+        "waste_backup_created": (
+            str(waste_backup_path)
+            if waste_backup_path
+            else None
+        ),
     }

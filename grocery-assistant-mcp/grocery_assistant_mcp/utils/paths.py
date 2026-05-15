@@ -10,4 +10,7 @@ LOG_DIR = PROJECT_ROOT / "logs"
 INVENTORY_PATH = DATA_DIR / "user_inventory.csv"
 INTAKE_HISTORY_PATH = DATA_DIR / "user_intake_history.csv"
 INTAKE_ITEMS_PATH = DATA_DIR / "user_intake_items.csv"
+FOOD_WASTE_PATH = DATA_DIR / "user_food_waste.csv"
+
+BACKUP_DIR = DATA_DIR / "backups"
 DATA_DESCRIPTIONS_PATH = DATA_DIR / "data_descriptions.txt"
