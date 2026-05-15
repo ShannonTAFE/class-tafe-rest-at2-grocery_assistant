@@ -13,6 +13,20 @@ from grocery_assistant_mcp.utils.paths import (
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
 
+INVENTORY_COLUMNS = [
+    "stock_id",
+    "food_item",
+    "brand",
+    "category",
+    "location",
+    "quantity",
+    "unit",
+    "servings_remaining",
+    "stock_status",
+    "expiry_date",
+    "notes",
+]
+
 
 def read_csv_file(path: Path) -> pd.DataFrame:
     """
