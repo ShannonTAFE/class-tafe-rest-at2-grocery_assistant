@@ -431,3 +431,17 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-16 18:30:33,313 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-16 18:33:53,975 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
 2026-05-16 18:33:56,642 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 00:22:55,484 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 00:22:55,678 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-17 00:23:04,496 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-17 00:24:02,945 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 00:24:03,007 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-17 00:25:32,637 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: f9026e2f90d246d18be3a76157d5dfb2
+2026-05-17 00:26:08,279 | INFO | mcp.server.streamable_http | Terminating session: f9026e2f90d246d18be3a76157d5dfb2
+2026-05-17 00:26:12,698 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-17 00:26:24,028 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 00:26:24,153 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-17 00:30:30,922 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: bb25c513576b430fbdd63e26c05ea2b1
+2026-05-17 00:34:54,320 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+2026-05-17 00:35:36,345 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 00:35:36,414 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started

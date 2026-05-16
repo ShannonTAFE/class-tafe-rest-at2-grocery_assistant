@@ -1,0 +1,31 @@
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "tools/call",
+  "params": {
+    "name": "add_intake_entry",
+    "arguments": {
+      "date": "2026-05-17",
+      "time": "18:30",
+      "meal_type": "dinner",
+      "meal_name": "Spaghetti bolognese",
+      "meal_description": "Home cooked batch meal",
+      "source": "home",
+      "amount_eaten": "1 large bowl",
+      "portion_confidence": "medium",
+      "total_calories_estimate": 760,
+      "total_protein_g_estimate": 42,
+      "total_carbs_g_estimate": 86,
+      "total_fat_g_estimate": 25,
+      "total_fibre_g_estimate": 8,
+      "total_sugar_g_estimate": 10,
+      "total_sodium_mg_estimate": 650,
+      "nutrition_confidence": "medium",
+      "was_finished": "yes",
+      "leftovers_created": "yes",
+      "hunger_before": "7",
+      "hunger_after": "3",
+      "notes": "Added during Version 1.1 curl test"
+    }
+  }
+}

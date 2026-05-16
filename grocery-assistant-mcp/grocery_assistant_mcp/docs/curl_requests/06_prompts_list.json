@@ -1,5 +1,6 @@
 {
   "jsonrpc": "2.0",
-  "id": 5,
-  "method": "prompts/list"
+  "id": 6,
+  "method": "prompts/list",
+  "params": {}
 }

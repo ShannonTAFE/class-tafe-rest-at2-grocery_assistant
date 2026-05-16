@@ -1,8 +1,8 @@
 {
   "jsonrpc": "2.0",
-  "id": 4,
+  "id": 22,
   "method": "resources/read",
   "params": {
-    "uri": "grocery://inventory"
+    "uri": "grocery://intake/items"
   }
 }
