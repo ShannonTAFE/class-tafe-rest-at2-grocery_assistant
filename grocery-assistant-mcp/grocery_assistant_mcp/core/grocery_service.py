@@ -16,12 +16,18 @@ from grocery_assistant_mcp.utils.paths import (
 
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
+    clean_lower_text,
+    clean_text,
     generate_next_id,
     read_csv_for_write,
     require_non_empty,
     save_csv,
+    validate_choice_or_blank,
     validate_date_or_blank,
+    validate_non_negative_fields,
     validate_non_negative_number,
+    validate_required_choice,
+    validate_time_or_blank,
 )
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
@@ -96,6 +102,52 @@ FOOD_WASTE_COLUMNS = [
     "notes",
 ]
 
+INTAKE_HISTORY_COLUMNS = [
+    "intake_id",
+    "date",
+    "time",
+    "meal_type",
+    "meal_name",
+    "meal_description",
+    "source",
+    "amount_eaten",
+    "portion_confidence",
+    "total_calories_estimate",
+    "total_protein_g_estimate",
+    "total_carbs_g_estimate",
+    "total_fat_g_estimate",
+    "total_fibre_g_estimate",
+    "total_sugar_g_estimate",
+    "total_sodium_mg_estimate",
+    "nutrition_confidence",
+    "was_finished",
+    "leftovers_created",
+    "hunger_before",
+    "hunger_after",
+    "notes",
+]
+
+INTAKE_ITEMS_COLUMNS = [
+    "intake_item_id",
+    "intake_id",
+    "food_item",
+    "brand",
+    "category",
+    "source",
+    "stock_id",
+    "amount_eaten",
+    "servings_used",
+    "calories_estimate",
+    "protein_g_estimate",
+    "carbs_g_estimate",
+    "fat_g_estimate",
+    "fibre_g_estimate",
+    "sugar_g_estimate",
+    "sodium_mg_estimate",
+    "nutrition_confidence",
+    "notes",
+]
+
 
 # ---------------------------------------------------------------------
 # Valid values
@@ -140,6 +192,33 @@ VALID_TRACKING_CONFIDENCE = {
     "low",
     "medium",
     "high",
+}
+
+VALID_MEAL_TYPES = {
+    "breakfast",
+    "brunch",
+    "lunch",
+    "dinner",
+    "snack",
+    "drink",
+    "dessert",
+    "supper",
+    "meal",
+    "other",
+    "unknown",
+}
+
+VALID_CONFIDENCE_LEVELS = {
+    "low",
+    "medium",
+    "high",
+    "unknown",
+}
+
+VALID_YES_NO_UNKNOWN = {
+    "yes",
+    "no",
+    "unknown",
 }
 
 
@@ -307,12 +386,41 @@ def list_inventory_items(
     if df.empty:
         return []
 
-    if category and "category" in df.columns:
-        df = df[_safe_text_series(df, "category") == category.lower()]
+    category_clean = clean_lower_text(category)
+
+    if category_clean and "category" in df.columns:
+        df = df[_safe_text_series(df, "category") == category_clean]
 
     if low_stock_only and "stock_status" in df.columns:
         low_statuses = ["low", "very low", "empty", "out"]
         df = df[_safe_text_series(df, "stock_status").isin(low_statuses)]
+
+    return df_to_records(df)
+
+def list_intake_history() -> list[dict]:
+    """
+    Return intake history records as JSON-ready dictionaries.
+
+    This is intended for MCP resources and read-only tools.
+    """
+    df = read_intake_history()
+
+    if df.empty:
+        return []
+
+    return df_to_records(df)
+
+
+def list_intake_items() -> list[dict]:
+    """
+    Return intake item records as JSON-ready dictionaries.
+
+    This is intended for MCP resources and read-only tools.
+    """
+    df = read_intake_items()
+
+    if df.empty:
+        return []
 
     return df_to_records(df)
 
@@ -335,14 +443,8 @@ def list_food_waste_items(
     if df.empty:
         return []
 
-    waste_type = waste_type.strip().lower()
-    category = category.strip().lower()
-
-    if waste_type and "waste_type" in df.columns:
-        df = df[_safe_text_series(df, "waste_type") == waste_type]
-
-    if category and "category" in df.columns:
-        df = df[_safe_text_series(df, "category") == category]
+    waste_type = clean_lower_text(waste_type)
+    category = clean_lower_text(category)
 
     return df_to_records(df)
 
@@ -652,6 +754,340 @@ def get_recent_intake(
 
     return df_to_records(df)
 
+
+# ---------------------------------------------------------------------
+# Intake write service functions
+# ---------------------------------------------------------------------
+
+def id_exists(
+    df: pd.DataFrame,
+    id_column: str,
+    id_value: str,
+) -> bool:
+    """
+    Return True if an ID exists in a DataFrame.
+    """
+    if df.empty or id_column not in df.columns:
+        return False
+
+    cleaned_id = clean_text(id_value)
+
+    return (
+        df[id_column]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .eq(cleaned_id)
+        .any()
+    )
+
+
+def require_existing_id(
+    df: pd.DataFrame,
+    id_column: str,
+    id_value: str,
+    entity_name: str,
+) -> str:
+    """
+    Validate that an ID exists in a DataFrame.
+
+    Returns the cleaned ID.
+    """
+    cleaned_id = clean_text(id_value, id_column, required=True)
+
+    if id_column not in df.columns:
+        raise ValueError(
+            f"Cannot validate {entity_name} because '{id_column}' column is missing."
+        )
+
+    if not id_exists(df, id_column, cleaned_id):
+        raise ValueError(f"No {entity_name} found with {id_column}: {cleaned_id}")
+
+    return cleaned_id
+
+
+def intake_id_exists(intake_id: str) -> bool:
+    """
+    Return True if an intake history record exists for the supplied intake_id.
+
+    This protects user_intake_items.csv from orphan rows.
+    """
+    cleaned_id = clean_text(intake_id, "intake_id", required=True)
+
+    history_df = read_csv_for_write(
+        INTAKE_HISTORY_PATH,
+        INTAKE_HISTORY_COLUMNS,
+    )
+
+    return id_exists(history_df, "intake_id", cleaned_id)
+
+
+def require_existing_intake_id(intake_id: str) -> str:
+    """
+    Validate that an intake_id exists in user_intake_history.csv.
+    """
+    history_df = read_csv_for_write(
+        INTAKE_HISTORY_PATH,
+        INTAKE_HISTORY_COLUMNS,
+    )
+
+    return require_existing_id(
+        df=history_df,
+        id_column="intake_id",
+        id_value=intake_id,
+        entity_name="intake entry",
+    )
+
+
+def require_existing_stock_id(stock_id: str) -> str:
+    """
+    Validate that a stock_id exists in user_inventory.csv.
+
+    This is useful for future inventory deduction workflows.
+    """
+    inventory_df = read_csv_for_write(
+        INVENTORY_PATH,
+        INVENTORY_COLUMNS,
+    )
+
+    return require_existing_id(
+        df=inventory_df,
+        id_column="stock_id",
+        id_value=stock_id,
+        entity_name="inventory item",
+    )
+
+
+def add_intake_entry(
+    date: str,
+    meal_name: str,
+    time: str = "",
+    meal_type: str = "meal",
+    meal_description: str = "",
+    source: str = "",
+    amount_eaten: str = "",
+    portion_confidence: str = "medium",
+    total_calories_estimate: float = 0,
+    total_protein_g_estimate: float = 0,
+    total_carbs_g_estimate: float = 0,
+    total_fat_g_estimate: float = 0,
+    total_fibre_g_estimate: float = 0,
+    total_sugar_g_estimate: float = 0,
+    total_sodium_mg_estimate: float = 0,
+    nutrition_confidence: str = "medium",
+    was_finished: str = "unknown",
+    leftovers_created: str = "unknown",
+    hunger_before: str = "",
+    hunger_after: str = "",
+    notes: str = "",
+) -> dict:
+    """
+    Add a meal or eating event to user_intake_history.csv.
+
+    This function records the meal-level intake event only. It does not
+    automatically deduct inventory, create leftovers, or create food waste.
+
+    Use add_intake_item() to attach optional ingredient/component rows to
+    this meal through intake_id.
+    """
+    date = clean_text(date, "date", required=True)
+    meal_name = clean_text(meal_name, "meal_name", required=True)
+    time = clean_text(time, "time")
+    meal_description = clean_text(meal_description)
+    source = clean_text(source)
+    amount_eaten = clean_text(amount_eaten)
+    hunger_before = clean_text(hunger_before)
+    hunger_after = clean_text(hunger_after)
+    notes = clean_text(notes)
+
+    validate_date_or_blank(date, "date")
+    validate_time_or_blank(time, "time")
+
+    meal_type = validate_required_choice(
+        meal_type,
+        VALID_MEAL_TYPES,
+        "meal_type",
+    )
+
+    portion_confidence = validate_choice_or_blank(
+        portion_confidence,
+        VALID_CONFIDENCE_LEVELS,
+        "portion_confidence",
+        default="unknown",
+    )
+
+    nutrition_confidence = validate_choice_or_blank(
+        nutrition_confidence,
+        VALID_CONFIDENCE_LEVELS,
+        "nutrition_confidence",
+        default="unknown",
+    )
+
+    was_finished = validate_choice_or_blank(
+        was_finished,
+        VALID_YES_NO_UNKNOWN,
+        "was_finished",
+        default="unknown",
+    )
+
+    leftovers_created = validate_choice_or_blank(
+        leftovers_created,
+        VALID_YES_NO_UNKNOWN,
+        "leftovers_created",
+        default="unknown",
+    )
+
+    numeric_values = validate_non_negative_fields({
+        "total_calories_estimate": total_calories_estimate,
+        "total_protein_g_estimate": total_protein_g_estimate,
+        "total_carbs_g_estimate": total_carbs_g_estimate,
+        "total_fat_g_estimate": total_fat_g_estimate,
+        "total_fibre_g_estimate": total_fibre_g_estimate,
+        "total_sugar_g_estimate": total_sugar_g_estimate,
+        "total_sodium_mg_estimate": total_sodium_mg_estimate,
+    })
+
+    df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
+
+    existing_ids = df["intake_id"].dropna().astype(str).tolist()
+    intake_id = generate_next_id(existing_ids, prefix="intake", width=3)
+
+    new_entry = {
+        "intake_id": intake_id,
+        "date": date,
+        "time": time,
+        "meal_type": meal_type,
+        "meal_name": meal_name,
+        "meal_description": meal_description,
+        "source": source,
+        "amount_eaten": amount_eaten,
+        "portion_confidence": portion_confidence,
+        "total_calories_estimate": numeric_values["total_calories_estimate"],
+        "total_protein_g_estimate": numeric_values["total_protein_g_estimate"],
+        "total_carbs_g_estimate": numeric_values["total_carbs_g_estimate"],
+        "total_fat_g_estimate": numeric_values["total_fat_g_estimate"],
+        "total_fibre_g_estimate": numeric_values["total_fibre_g_estimate"],
+        "total_sugar_g_estimate": numeric_values["total_sugar_g_estimate"],
+        "total_sodium_mg_estimate": numeric_values["total_sodium_mg_estimate"],
+        "nutrition_confidence": nutrition_confidence,
+        "was_finished": was_finished,
+        "leftovers_created": leftovers_created,
+        "hunger_before": hunger_before,
+        "hunger_after": hunger_after,
+        "notes": notes,
+    }
+
+    backup_path = backup_csv(INTAKE_HISTORY_PATH)
+
+    updated_df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+    save_csv(updated_df, INTAKE_HISTORY_PATH)
+
+    return {
+        "success": True,
+        "message": "Intake entry added.",
+        "item": new_entry,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+
+def add_intake_item(
+    intake_id: str,
+    food_item: str,
+    brand: str = "",
+    category: str = "",
+    source: str = "",
+    stock_id: str = "",
+    amount_eaten: str = "",
+    servings_used: float = 0,
+    calories_estimate: float = 0,
+    protein_g_estimate: float = 0,
+    carbs_g_estimate: float = 0,
+    fat_g_estimate: float = 0,
+    fibre_g_estimate: float = 0,
+    sugar_g_estimate: float = 0,
+    sodium_mg_estimate: float = 0,
+    nutrition_confidence: str = "medium",
+    notes: str = "",
+) -> dict:
+    """
+    Add an ingredient, food item, or component to user_intake_items.csv.
+
+    Each row belongs to a parent meal/eating event in user_intake_history.csv
+    through intake_id. This function validates that the parent intake_id exists
+    before writing the item row.
+
+    This function records intake detail only. It does not automatically deduct
+    inventory, create leftovers, or create food waste.
+    """
+    intake_id = require_existing_intake_id(intake_id)
+
+    food_item = clean_text(food_item, "food_item", required=True)
+    brand = clean_text(brand)
+    category = clean_text(category)
+    source = clean_text(source)
+    stock_id = clean_text(stock_id)
+    amount_eaten = clean_text(amount_eaten)
+    notes = clean_text(notes)
+
+    nutrition_confidence = validate_choice_or_blank(
+        nutrition_confidence,
+        VALID_CONFIDENCE_LEVELS,
+        "nutrition_confidence",
+        default="unknown",
+    )
+
+    numeric_values = validate_non_negative_fields({
+        "servings_used": servings_used,
+        "calories_estimate": calories_estimate,
+        "protein_g_estimate": protein_g_estimate,
+        "carbs_g_estimate": carbs_g_estimate,
+        "fat_g_estimate": fat_g_estimate,
+        "fibre_g_estimate": fibre_g_estimate,
+        "sugar_g_estimate": sugar_g_estimate,
+        "sodium_mg_estimate": sodium_mg_estimate,
+    })
+
+    df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
+
+    existing_ids = df["intake_item_id"].dropna().astype(str).tolist()
+    intake_item_id = generate_next_id(
+        existing_ids,
+        prefix="intake_item",
+        width=3,
+    )
+
+    new_item = {
+        "intake_item_id": intake_item_id,
+        "intake_id": intake_id,
+        "food_item": food_item,
+        "brand": brand,
+        "category": category,
+        "source": source,
+        "stock_id": stock_id,
+        "amount_eaten": amount_eaten,
+        "servings_used": numeric_values["servings_used"],
+        "calories_estimate": numeric_values["calories_estimate"],
+        "protein_g_estimate": numeric_values["protein_g_estimate"],
+        "carbs_g_estimate": numeric_values["carbs_g_estimate"],
+        "fat_g_estimate": numeric_values["fat_g_estimate"],
+        "fibre_g_estimate": numeric_values["fibre_g_estimate"],
+        "sugar_g_estimate": numeric_values["sugar_g_estimate"],
+        "sodium_mg_estimate": numeric_values["sodium_mg_estimate"],
+        "nutrition_confidence": nutrition_confidence,
+        "notes": notes,
+    }
+
+    backup_path = backup_csv(INTAKE_ITEMS_PATH)
+
+    updated_df = pd.concat([df, pd.DataFrame([new_item])], ignore_index=True)
+    save_csv(updated_df, INTAKE_ITEMS_PATH)
+
+    return {
+        "success": True,
+        "message": "Intake item added.",
+        "item": new_item,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
 
 # ---------------------------------------------------------------------
 # Inventory write service functions

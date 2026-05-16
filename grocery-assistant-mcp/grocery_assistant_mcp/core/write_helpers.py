@@ -7,6 +7,93 @@ from pathlib import Path
 import pandas as pd
 
 
+def clean_text(
+    value: object,
+    field_name: str = "value",
+    required: bool = False,
+) -> str:
+    """
+    Convert a value into a stripped string.
+
+    If required=True, blank values raise ValueError.
+    """
+    if value is None:
+        if required:
+            raise ValueError(f"{field_name} is required.")
+        return ""
+
+    cleaned = str(value).strip()
+
+    if required and cleaned == "":
+        raise ValueError(f"{field_name} is required.")
+
+    return cleaned
+
+
+def clean_lower_text(
+    value: object,
+    field_name: str = "value",
+    required: bool = False,
+) -> str:
+    """
+    Clean text and return lowercase.
+    """
+    return clean_text(value, field_name, required).lower()
+
+
+def validate_choice_or_blank(
+    value: object,
+    valid_values: set[str],
+    field_name: str,
+    default: str = "",
+) -> str:
+    """
+    Validate a lowercase choice if supplied.
+
+    Blank values are allowed and return the supplied default.
+    """
+    cleaned = clean_lower_text(value, field_name)
+
+    if cleaned == "":
+        return default
+
+    if cleaned not in valid_values:
+        allowed = ", ".join(sorted(valid_values))
+        raise ValueError(f"{field_name} must be blank or one of: {allowed}")
+
+    return cleaned
+
+
+def validate_required_choice(
+    value: object,
+    valid_values: set[str],
+    field_name: str,
+) -> str:
+    """
+    Validate a required lowercase choice.
+    """
+    cleaned = clean_lower_text(value, field_name, required=True)
+
+    if cleaned not in valid_values:
+        allowed = ", ".join(sorted(valid_values))
+        raise ValueError(f"{field_name} must be one of: {allowed}")
+
+    return cleaned
+
+
+def validate_non_negative_fields(values: dict[str, object]) -> dict[str, float]:
+    """
+    Validate multiple numeric fields and return them as floats.
+    """
+    cleaned_values = {}
+
+    for field_name, value in values.items():
+        validate_non_negative_number(value, field_name)
+        cleaned_values[field_name] = float(value)
+
+    return cleaned_values
+
+
 def ensure_parent_dir(path: Path) -> None:
     """Ensure the parent folder for a path exists."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -132,3 +219,18 @@ def validate_date_or_blank(value: str, field_name: str = "date") -> None:
         datetime.strptime(str(value), "%Y-%m-%d")
     except ValueError:
         raise ValueError(f"{field_name} must use YYYY-MM-DD format.")
+
+
+def validate_time_or_blank(value: str, field_name: str = "time") -> None:
+    """
+    Validate HH:MM time format.
+
+    Blank times are allowed because some entries may be approximate.
+    """
+    if value is None or str(value).strip() == "":
+        return
+
+    try:
+        datetime.strptime(str(value), "%H:%M")
+    except ValueError:
+        raise ValueError(f"{field_name} must use HH:MM format.")
