@@ -1,5 +1,8 @@
 from mcp.server.fastmcp import FastMCP
 
+from typing import Annotated
+from pydantic import Field
+
 from grocery_assistant_mcp.core.grocery_service import (
     add_intake_entry as add_intake_entry_service,
     add_intake_item as add_intake_item_service,
@@ -38,33 +41,194 @@ def register_intake_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def add_intake_entry(
-        date: str,
-        meal_name: str,
-        time: str = "",
-        meal_type: str = "meal",
-        meal_description: str = "",
-        source: str = "",
-        amount_eaten: str = "",
-        portion_confidence: str = "medium",
-        total_calories_estimate: float = 0,
-        total_protein_g_estimate: float = 0,
-        total_carbs_g_estimate: float = 0,
-        total_fat_g_estimate: float = 0,
-        total_fibre_g_estimate: float = 0,
-        total_sugar_g_estimate: float = 0,
-        total_sodium_mg_estimate: float = 0,
-        nutrition_confidence: str = "medium",
-        was_finished: str = "unknown",
-        leftovers_created: str = "unknown",
-        hunger_before: str = "",
-        hunger_after: str = "",
-        notes: str = "",
+        date: Annotated[
+            str,
+            Field(
+                description=(
+                    "Required meal date in YYYY-MM-DD format. "
+                    'Example: "2026-05-16".'
+                )
+            ),
+        ],
+        meal_name: Annotated[
+            str,
+            Field(
+                description=(
+                    "Required short name of the meal or eating event. "
+                    'Examples: "Spaghetti bolognese", "Toast", "Protein smoothie".'
+                )
+            ),
+        ],
+        time: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional meal time in 24-hour HH:MM format. "
+                    'Example: "18:30". Leave blank if unknown.'
+                )
+            ),
+        ] = "",
+        meal_type: Annotated[
+            str,
+            Field(
+                description=(
+                    "Type of eating event. Use one of: meal, breakfast, lunch, "
+                    "dinner, snack, drink, dessert, other."
+                )
+            ),
+        ] = "meal",
+        meal_description: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional longer description of what was eaten, including "
+                    "important ingredients or context."
+                )
+            ),
+        ] = "",
+        source: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional source of the meal. Use values such as home, takeaway, "
+                    "restaurant, cafe, work, school, friend, or other."
+                )
+            ),
+        ] = "",
+        amount_eaten: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional free-text portion description. "
+                    'Examples: "1 bowl", "2 slices", "half serve", "large plate".'
+                )
+            ),
+        ] = "",
+        portion_confidence: Annotated[
+            str,
+            Field(
+                description=(
+                    "Confidence in the portion estimate. Use one of: low, medium, high."
+                )
+            ),
+        ] = "medium",
+        total_calories_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total calories for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_protein_g_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total protein in grams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_carbs_g_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total carbohydrates in grams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_fat_g_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total fat in grams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_fibre_g_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total fibre in grams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_sugar_g_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total sugar in grams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        total_sodium_mg_estimate: Annotated[
+            float,
+            Field(
+                description=(
+                    "Estimated total sodium in milligrams for the meal. Use 0 if unknown."
+                )
+            ),
+        ] = 0,
+        nutrition_confidence: Annotated[
+            str,
+            Field(
+                description=(
+                    "Confidence in the nutrition estimate. Use one of: low, medium, high."
+                )
+            ),
+        ] = "medium",
+        was_finished: Annotated[
+            str,
+            Field(
+                description=(
+                    "Whether the meal was finished. Use one of: yes, no, partial, unknown."
+                )
+            ),
+        ] = "unknown",
+        leftovers_created: Annotated[
+            str,
+            Field(
+                description=(
+                    "Whether leftovers were created. Use one of: yes, no, unknown."
+                )
+            ),
+        ] = "unknown",
+        hunger_before: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional hunger rating or note before eating. "
+                    'Examples: "7/10", "very hungry", "not very hungry".'
+                )
+            ),
+        ] = "",
+        hunger_after: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional hunger or fullness rating after eating. "
+                    'Examples: "full", "8/10", "still hungry".'
+                )
+            ),
+        ] = "",
+        notes: Annotated[
+            str,
+            Field(
+                description=(
+                    "Optional extra notes about the meal, context, appetite, leftovers, "
+                    "or uncertainty in the entry."
+                )
+            ),
+        ] = "",
     ) -> dict:
         """
         Add a meal or eating event to the user's intake history.
 
-        This creates the parent intake entry only. It does not automatically
-        deduct inventory or create waste records.
+        Use this when the user says they ate a meal, snack, drink, takeaway,
+        restaurant meal, or homemade meal.
+
+        This creates the parent meal record only. It does not create ingredient
+        component rows and does not automatically deduct inventory. Use
+        add_intake_item separately to record meal components.
         """
         return add_intake_entry_service(
             date=date,
