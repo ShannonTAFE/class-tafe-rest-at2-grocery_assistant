@@ -223,6 +223,13 @@ VALID_YES_NO_UNKNOWN = {
     "unknown",
 }
 
+VALID_FINISHED_STATUSES = {
+    "yes",
+    "no",
+    "partial",
+    "unknown",
+}
+
 
 # ---------------------------------------------------------------------
 # Small service helpers
@@ -956,7 +963,7 @@ def add_intake_entry(
 
     was_finished = validate_choice_or_blank(
         was_finished,
-        VALID_YES_NO_UNKNOWN,
+        VALID_FINISHED_STATUSES,
         "was_finished",
         default="unknown",
     )

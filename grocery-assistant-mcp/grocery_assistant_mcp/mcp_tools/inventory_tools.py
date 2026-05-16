@@ -99,7 +99,13 @@ def register_inventory_tools(mcp: FastMCP) -> None:
         ] = 0,
         stock_status: Annotated[
             str,
-            Field(description='Current inventory status. Use "ok", "low", "empty", "used", "expired", or "removed".'),
+            Field(
+                description=(
+                    'Current inventory status. Use "ok", "low", "very low", '
+                    '"empty", "out", or "expired". Do not use "removed" here; '
+                    'use remove_inventory_item when an item should leave active inventory.'
+                )
+            ),
         ] = "ok",
         expiry_date: Annotated[
             str,
@@ -206,6 +212,7 @@ def register_inventory_tools(mcp: FastMCP) -> None:
         - duplicate_entry
         - incorrect_entry
         - test_entry
+        - no_longer_tracked
         - unknown
 
         If quantity_wasted or servings_wasted are not supplied for a waste-type

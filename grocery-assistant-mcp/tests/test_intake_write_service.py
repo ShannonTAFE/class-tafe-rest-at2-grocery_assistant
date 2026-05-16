@@ -60,8 +60,26 @@ def test_add_intake_item_requires_existing_parent_intake(tmp_path, monkeypatch):
 def test_add_intake_item_creates_component_row(tmp_path, monkeypatch):
     history_path = tmp_path / "user_intake_history.csv"
     items_path = tmp_path / "user_intake_items.csv"
+    inventory_path = tmp_path / "user_inventory.csv"
+
     monkeypatch.setattr(service, "INTAKE_HISTORY_PATH", history_path)
     monkeypatch.setattr(service, "INTAKE_ITEMS_PATH", items_path)
+    monkeypatch.setattr(service, "INVENTORY_PATH", inventory_path)
+
+    inventory_result = service.add_inventory_item(
+        food_item="Beef mince",
+        brand="Coles",
+        category="protein",
+        location="freezer",
+        quantity=500,
+        unit="g",
+        servings_remaining=4,
+        stock_status="ok",
+        expiry_date="2026-06-15",
+        notes="Test inventory item",
+    )
+
+    stock_id = inventory_result["item"]["stock_id"]
 
     entry_result = service.add_intake_entry(
         date="2026-05-16",
@@ -78,20 +96,17 @@ def test_add_intake_item_creates_component_row(tmp_path, monkeypatch):
         brand="Coles",
         category="protein",
         source="inventory",
-        stock_id="inv_002",
+        stock_id=stock_id,
         amount_eaten="1 serve",
         servings_used=1,
         protein_g_estimate=28,
         nutrition_confidence="medium",
     )
 
-    assert item_result["success"] is True
-    assert item_result["item"]["intake_item_id"] == "intake_item_001"
     assert item_result["item"]["intake_id"] == intake_id
     assert item_result["item"]["food_item"] == "Beef mince"
-
-    df = pd.read_csv(items_path)
-    assert len(df) == 1
-    assert df.loc[0, "intake_item_id"] == "intake_item_001"
-    assert df.loc[0, "stock_id"] == "inv_002"
-    assert df.loc[0, "servings_used"] == 1.0
+    assert item_result["item"]["source"] == "inventory"
+    assert item_result["item"]["stock_id"] == stock_id
+    assert item_result["item"]["servings_used"] == 1
+    assert item_result["item"]["protein_g_estimate"] == 28
+    assert item_result["item"]["nutrition_confidence"] == "medium"

@@ -429,3 +429,5 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-16 18:29:47,378 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-16 18:30:30,137 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
 2026-05-16 18:30:33,313 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-16 18:33:53,975 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-16 18:33:56,642 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
