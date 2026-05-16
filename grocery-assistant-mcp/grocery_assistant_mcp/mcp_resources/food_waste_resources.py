@@ -18,34 +18,24 @@ from grocery_assistant_mcp.core.grocery_service import (
 )
 
 def register_food_waste_resources(mcp: FastMCP) -> None:
-    """Register food waste resources with the MCP server.
-
-    Food waste records are stored separately from active inventory so the
-    inventory resource can remain focused on food currently available to use.
-
-    This resource is intended for behaviour-relevant waste tracking, not
-    general inventory deletion logs. It supports future personalization by
-    recording items that were expired, spoiled, discarded, unused, overbought,
-    or disliked.
-    """
+    """Register food waste resources with the MCP server."""
 
     @mcp.resource("grocery://food-waste")
     def food_waste_resource() -> str:
         """
-        Return all food waste records as JSON text.
+        Return behaviour-relevant food waste records as JSON text.
 
-        This resource provides a history of meaningful food waste events.
-        It is used to review patterns such as repeated expiry, spoiled food,
-        overbuying, disliked items, or food discarded before being fully used.
+        This resource is separate from grocery://inventory because waste
+        records serve a learning purpose, not a current stock tracking purpose.
 
-        These records can support future prompts and tools that help the user:
-        - reduce repeat waste
-        - improve shopping quantities
-        - identify foods that are not being used in time
-        - compare initial supply, estimated consumption, and leftover waste
+        It records meaningful waste outcomes such as expired, spoiled,
+        discarded, unused, overbought, or disliked food. These records can help
+        future tools and prompts identify waste patterns, shopping quantity
+        issues, and foods that may need better meal planning.
 
-        This resource should not be used for normal active inventory.
-        Use grocery://inventory for current available stock.
+        It is not a general log of every out-of-stock or used-up item.
+        Normal used-up items may remain in grocery://inventory as out-of-stock
+        tracked items if they are useful for shopping or personalization.
         """
         return to_json(list_food_waste_items())
 

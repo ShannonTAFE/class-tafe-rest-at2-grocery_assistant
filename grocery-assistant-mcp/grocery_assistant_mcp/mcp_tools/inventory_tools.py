@@ -1,15 +1,13 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
-from typing import Optional
 
 from grocery_assistant_mcp.core import grocery_service
 from grocery_assistant_mcp.core.grocery_service import (
     add_inventory_item as add_inventory_item_service,
-    update_inventory_item as update_inventory_item_service,
     remove_inventory_item as remove_inventory_item_service,
-
+    update_inventory_item as update_inventory_item_service,
 )
 
 

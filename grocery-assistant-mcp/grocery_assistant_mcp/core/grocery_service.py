@@ -30,6 +30,30 @@ logger = logging.getLogger("grocery_mcp.grocery_data")
 # ---------------------------------------------------------------------
 # CSV schemas
 # ---------------------------------------------------------------------
+#
+# Design note:
+# - user_inventory.csv stores the user's tracked grocery stock state.
+#   It is not limited to food physically available right now.
+#
+# - A tracked inventory item may be available, low, very low, empty, out of
+#   stock, or expired but still physically present.
+#
+# - Keeping out-of-stock items can support future personalization, such as
+#   recognizing staples, common restock needs, frequently used ingredients,
+#   and low-priority items that do not need urgent replacement.
+#
+# - user_food_waste.csv is separate because it serves a different purpose:
+#   learning from meaningful waste outcomes. It records expired, spoiled,
+#   discarded, unused, overbought, or disliked food.
+#
+# - Data cleanup removals, duplicate records, incorrect records, test records,
+#   and normally used-up items should not be stored as food waste.
+#
+# - If an item is out of stock but still useful to remember, update its
+#   stock_status to "out" or "empty" instead of removing it.
+#
+# - If an item should no longer be tracked at all, remove it with
+#   remove_inventory_item().
 
 INVENTORY_COLUMNS = [
     "stock_id",
@@ -99,6 +123,7 @@ VALID_REMOVAL_TYPES = {
     "duplicate_entry",
     "incorrect_entry",
     "test_entry",
+    "no_longer_tracked",
     "unknown",
 }
 
@@ -181,9 +206,19 @@ def read_csv_file(path: Path) -> pd.DataFrame:
 
 def read_inventory() -> pd.DataFrame:
     """
-    Read the active inventory CSV.
+    Read user_inventory.csv as the user's tracked grocery stock state.
 
-    This backs the grocery://inventory MCP resource.
+    This file supports current grocery awareness and future personalization.
+    It may include food that is currently available, running low, empty/out
+    of stock but intentionally kept as a restock signal, or expired but still
+    physically present.
+
+    Items should remain here when they are still useful for shopping,
+    planning, or habit recognition.
+
+    Items should be removed only when they are no longer useful to track,
+    were entered incorrectly, are duplicates/test data, or have been discarded
+    as waste.
     """
     return read_csv_file(INVENTORY_PATH)
 
@@ -250,11 +285,22 @@ def list_inventory_items(
     low_stock_only: bool = False,
 ) -> list[dict]:
     """
-    Return active inventory items.
+    Return tracked grocery inventory records as JSON-ready dictionaries.
+
+    Tracked inventory includes items that are useful for current or future
+    grocery decisions. This can include:
+    - available items
+    - low or very low stock items
+    - empty/out-of-stock items kept as shopping reminders
+    - expired items still physically present
+
+    Keeping some out-of-stock items is intentional. It can help the assistant
+    recognize common staples, restock patterns, frequently used ingredients,
+    and lower-priority items that do not require urgent replacement.
 
     Optional filters:
-    - category
-    - low_stock_only
+    - category: return only items from a category such as pantry, dairy, produce, or protein
+    - low_stock_only: return items marked low, very low, empty, or out
     """
     df = read_inventory()
 
@@ -702,21 +748,26 @@ def update_inventory_item(
     notes: str | None = None,
 ) -> dict:
     """
-    Update an existing item in the active inventory CSV.
+    Update an existing tracked inventory item.
 
-    This function:
-    - validates the stock_id
-    - finds the existing inventory row
-    - validates only the fields being updated
-    - backs up the inventory CSV
-    - updates only fields that are not None
-    - saves the updated CSV
-    - returns the updated item
+    Use this function when the item should remain part of the user's tracked
+    grocery stock state, but its details need to change.
 
-    Note:
-    - initial_quantity, initial_servings, and date_added are included mainly
-      for corrections/migration. Normal day-to-day changes should usually
-      update quantity and servings_remaining instead.
+    Common examples:
+    - changing quantity or servings remaining
+    - marking an item as low, very low, empty, or out
+    - keeping an out-of-stock staple as a shopping reminder
+    - marking an expired item that is still physically present
+    - correcting location, category, brand, expiry date, or notes
+
+    Important:
+    If an item is used up but should remain useful for shopping or future
+    personalization, update it to quantity=0, servings_remaining=0, and
+    stock_status="out" instead of removing it.
+
+    Use remove_inventory_item() only when the item should leave tracking
+    completely, or when it has become waste, duplicate data, incorrect data,
+    or test data.
     """
     require_non_empty(stock_id, "stock_id")
 
@@ -813,12 +864,18 @@ def remove_inventory_item(
     notes: str = "",
 ) -> dict:
     """
-    Remove an item from active inventory.
+    Remove an item from the tracked inventory file.
 
-    If the removal type represents useful food waste behaviour, this function
-    creates a food waste record before removing the item from active inventory.
+    This function removes the row from user_inventory.csv because the item
+    should no longer appear as part of the user's tracked grocery stock state.
 
-    Waste records are created for:
+    Do not use this function only because an item is out of stock. If an item
+    is out but useful to remember for shopping, staple recognition, or future
+    personalization, use update_inventory_item() and set stock_status="out"
+    or stock_status="empty".
+
+    This function may create a food waste record when removal_type represents
+    meaningful waste behaviour:
     - expired
     - spoiled
     - discarded
@@ -826,12 +883,16 @@ def remove_inventory_item(
     - overbought
     - did_not_like
 
-    Waste records are not created for:
+    It does not create food waste records for normal tracking cleanup:
     - used_up
     - duplicate_entry
     - incorrect_entry
     - test_entry
+    - no_longer_tracked
     - unknown
+
+    Use removal_type="used_up" only when the item was consumed normally and
+    the user does not need it kept as an out-of-stock tracked item.
     """
     require_non_empty(stock_id, "stock_id")
 

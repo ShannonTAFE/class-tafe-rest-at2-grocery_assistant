@@ -11,7 +11,7 @@ USER_INVENTORY_CSV = DATA_DIR / "user_inventory.csv"
 USER_INTAKE_HISTORY_CSV = DATA_DIR / "user_intake_history.csv"
 USER_INTAKE_ITEMS_CSV = DATA_DIR / "user_intake_items.csv"
 DATA_DESCRIPTIONS_TXT = DATA_DIR / "data_descriptions.txt"
-
+USER_FOOD_WASTE_CSV = DATA_DIR / "user_food_waste.csv"
 
 def get_csv_headers(csv_path: Path) -> list[str]:
     with csv_path.open("r", encoding="utf-8-sig", newline="") as file:
@@ -90,3 +90,22 @@ def test_data_descriptions_file_is_not_empty():
     text = DATA_DESCRIPTIONS_TXT.read_text(encoding="utf-8")
 
     assert len(text.strip()) > 0
+
+def test_food_waste_csv_has_required_columns():
+    headers = set(get_csv_headers(USER_FOOD_WASTE_CSV))
+
+    required_columns = {
+        "waste_id",
+        "stock_id",
+        "food_item",
+        "quantity_wasted",
+        "servings_wasted",
+        "wasted_at",
+        "waste_type",
+        "waste_reason",
+        "tracking_confidence",
+    }
+
+    missing_columns = required_columns - headers
+
+    assert not missing_columns, f"Missing columns: {missing_columns}"

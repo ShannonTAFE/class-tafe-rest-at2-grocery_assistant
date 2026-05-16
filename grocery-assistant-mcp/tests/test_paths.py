@@ -11,6 +11,7 @@ USER_INVENTORY_CSV = DATA_DIR / "user_inventory.csv"
 USER_INTAKE_HISTORY_CSV = DATA_DIR / "user_intake_history.csv"
 USER_INTAKE_ITEMS_CSV = DATA_DIR / "user_intake_items.csv"
 DATA_DESCRIPTIONS_TXT = DATA_DIR / "data_descriptions.txt"
+FOOD_WASTE_PATH_CSV = DATA_DIR / "user_food_waste.csv"
 
 
 def test_project_root_exists():
@@ -38,3 +39,4 @@ def test_expected_resource_files_exist():
     assert USER_INTAKE_HISTORY_CSV.exists()
     assert USER_INTAKE_ITEMS_CSV.exists()
     assert DATA_DESCRIPTIONS_TXT.exists()
+    assert FOOD_WASTE_PATH_CSV.exists()

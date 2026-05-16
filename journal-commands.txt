@@ -250,3 +250,15 @@ curl.exe -i -X POST $McpUrl `
   --data-binary "@curl_requests/04_read_inventory.json"
 
 Also confirm that a CSV backup was created before the write.
+
+
+Clear cache command
+Get-ChildItem -Path . -Recurse -Directory -Name "__pycache__" | ForEach-Object {
+    Remove-Item -Recurse -Force $_
+}
+
+Get-ChildItem -Path . -Recurse -Directory -Name ".pytest_cache" | ForEach-Object {
+    Remove-Item -Recurse -Force $_
+}
+
+Get-ChildItem -Path . -Recurse -Include "*.pyc", "*.pyo" | Remove-Item -Force
