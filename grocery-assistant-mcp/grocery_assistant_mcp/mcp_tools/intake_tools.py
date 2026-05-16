@@ -1,20 +1,16 @@
 from mcp.server.fastmcp import FastMCP
 
 from grocery_assistant_mcp.core.grocery_service import (
-    get_recent_intake as get_recent_intake_service, 
-    get_daily_intake_summary as get_daily_intake_summary_service,
     add_intake_entry as add_intake_entry_service,
     add_intake_item as add_intake_item_service,
-    to_json,
+    get_daily_intake_summary as get_daily_intake_summary_service,
+    get_recent_intake as get_recent_intake_service,
 )
 
 
 def register_intake_tools(mcp: FastMCP) -> None:
     """
-    Register intake write tools.
-
-    These tools allow the MCP client to record meals and the food items
-    or components inside those meals.
+    Register intake tools.
 
     The MCP layer stays thin:
     - validation happens in grocery_service.py
@@ -29,47 +25,23 @@ def register_intake_tools(mcp: FastMCP) -> None:
     ) -> list[dict]:
         """
         Get recent food intake records from the user's intake history.
-
-        Args:
-            days_back: Number of days back from today to include.
-            meal_type: Optional filter such as breakfast, lunch, dinner, or snack.
-
-        Returns:
-            A list of recent intake history records, newest first.
         """
+        return get_recent_intake_service(days_back=days_back, meal_type=meal_type)
 
-        return get_recent_intake_service(
-            days_back=days_back,
-            meal_type=meal_type,
-        )
     @mcp.tool()
     def get_daily_intake_summary(date: str) -> dict:
         """
         Get all logged meals, food items, and calculated nutrition totals
-        for a specific date.
-
-        Args:
-            date: Date to summarise in YYYY-MM-DD format.
-
-        Returns:
-            A dictionary containing:
-            - date
-            - meal_count
-            - item_count
-            - meals
-            - items
-            - nutrition_totals
-            - missing_nutrition_counts
+        for a specific date in YYYY-MM-DD format.
         """
-
         return get_daily_intake_summary_service(date=date)
-    
+
     @mcp.tool()
     def add_intake_entry(
         date: str,
+        meal_name: str,
         time: str = "",
-        meal_type: str = "",
-        meal_name: str = "",
+        meal_type: str = "meal",
         meal_description: str = "",
         source: str = "",
         amount_eaten: str = "",
@@ -82,22 +54,19 @@ def register_intake_tools(mcp: FastMCP) -> None:
         total_sugar_g_estimate: float = 0,
         total_sodium_mg_estimate: float = 0,
         nutrition_confidence: str = "medium",
-        was_finished: str = "",
-        leftovers_created: str = "",
+        was_finished: str = "unknown",
+        leftovers_created: str = "unknown",
         hunger_before: str = "",
         hunger_after: str = "",
         notes: str = "",
-    ) -> str:
+    ) -> dict:
         """
         Add a meal or eating event to the user's intake history.
-
-        Use this when the user records that they ate something, such as
-        breakfast, lunch, dinner, a snack, takeaway, or a homemade meal.
 
         This creates the parent intake entry only. It does not automatically
         deduct inventory or create waste records.
         """
-        result = add_intake_entry_service(
+        return add_intake_entry_service(
             date=date,
             time=time,
             meal_type=meal_type,
@@ -121,8 +90,6 @@ def register_intake_tools(mcp: FastMCP) -> None:
             notes=notes,
         )
 
-        return to_json(result)
-
     @mcp.tool()
     def add_intake_item(
         intake_id: str,
@@ -142,20 +109,14 @@ def register_intake_tools(mcp: FastMCP) -> None:
         sodium_mg_estimate: float = 0,
         nutrition_confidence: str = "medium",
         notes: str = "",
-    ) -> str:
+    ) -> dict:
         """
         Add a food item, ingredient, or component to an existing intake entry.
 
-        Use this after add_intake_entry when the meal has known ingredients
-        or components.
-
-        The item is linked to the parent meal by intake_id.
-
-        This tool can optionally store stock_id and servings_used so future
-        inventory deduction can be added later, but this first version does
-        not automatically change inventory.
+        Optional stock_id values are validated by the service layer when supplied.
+        This first version does not automatically change inventory.
         """
-        result = add_intake_item_service(
+        return add_intake_item_service(
             intake_id=intake_id,
             food_item=food_item,
             brand=brand,
@@ -174,5 +135,3 @@ def register_intake_tools(mcp: FastMCP) -> None:
             nutrition_confidence=nutrition_confidence,
             notes=notes,
         )
-
-        return to_json(result)

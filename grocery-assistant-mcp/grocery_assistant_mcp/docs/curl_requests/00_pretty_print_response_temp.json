@@ -1,14 +1,591 @@
-File "<frozen runpy>", line 88, in _run_code
-  File "C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp\grocery_assistant_mcp\stdio_server.py", line 4, in <module>
-    mcp = create_mcp_server()
-  File "C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp\grocery_assistant_mcp\server_factory.py", line 30, in create_mcp_server
-    register_tools(mcp)
-    ~~~~~~~~~~~~~~^^^^^
-  File "C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp\grocery_assistant_mcp\mcp_tools\register.py", line 12, in register_tools
-    register_inventory_tools(mcp)
-    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
-  File "C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp\grocery_assistant_mcp\mcp_tools\inventory_tools.py", line 185, in register_inventory_tools
-    quantity_wasted: Optional[float
-] = None,
-                     ^^^^^^^^
-NameError: name 'Optional' is not defined
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "tools": [
+      {
+        "name": "search_inventory",
+        "description": "\nSearch the current grocery inventory.\n\nUse this tool when the user asks whether a specific food item is available,\nwants to find items in a category, or wants to check items stored in a\nparticular location.\n\nThis is a read-only tool. It does not add, update, remove, or consume\ninventory items.\n\nReturns matching inventory rows from user_inventory.csv.\n",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Optional text search across inventory item name, brand, and notes. Use this for searches like \"chicken\", \"oats\", \"pasta\", or \"use soon\". Leave blank when filtering only by category or location.",
+              "title": "Query",
+              "type": "string"
+            },
+            "category": {
+              "default": "",
+              "description": "Optional inventory category filter. Use broad categories such as \"pantry\", \"protein\", \"dairy\", \"vegetable\", \"fruit\", or \"snack\". Leave blank if category is not needed.",
+              "title": "Category",
+              "type": "string"
+            },
+            "location": {
+              "default": "",
+              "description": "Optional storage location filter. Use locations such as \"cupboard\", \"fridge\", \"freezer\", or \"pantry\". Leave blank if location is not needed.",
+              "title": "Location",
+              "type": "string"
+            }
+          },
+          "title": "search_inventoryArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Result",
+              "type": "array"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "search_inventoryOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_inventory_item",
+        "description": "\nAdd one new grocery inventory item.\n\nUse this when the user wants to record a new grocery item that is not\nalready represented in the inventory.\n\nThis tool creates a new inventory row and the service layer generates\nthe stock_id internally.\n\nDo not use this tool to update an existing item, reduce servings, mark\nan item as consumed, or correct an existing inventory row.\n",
+        "inputSchema": {
+          "properties": {
+            "food_item": {
+              "description": "Name of the food item to add. Required. Example: \"Rolled oats\".",
+              "title": "Food Item",
+              "type": "string"
+            },
+            "brand": {
+              "default": "",
+              "description": "Brand name if known. Leave blank if unknown. Example: \"Uncle Tobys\".",
+              "title": "Brand",
+              "type": "string"
+            },
+            "category": {
+              "default": "",
+              "description": "Broad food category. Example: \"pantry\", \"protein\", \"dairy\", \"vegetable\", \"fruit\".",
+              "title": "Category",
+              "type": "string"
+            },
+            "location": {
+              "default": "",
+              "description": "Storage location. Example: \"cupboard\", \"fridge\", \"freezer\", \"pantry\".",
+              "title": "Location",
+              "type": "string"
+            },
+            "quantity": {
+              "default": 0,
+              "description": "Numeric amount of the item. Use with unit. Example: 1 for one bag, 500 for 500 g.",
+              "title": "Quantity",
+              "type": "number"
+            },
+            "unit": {
+              "default": "",
+              "description": "Unit for quantity. Example: \"bag\", \"packet\", \"g\", \"kg\", \"can\", \"item\".",
+              "title": "Unit",
+              "type": "string"
+            },
+            "servings_remaining": {
+              "default": 0,
+              "description": "Estimated number of usable servings remaining. Example: 10.",
+              "title": "Servings Remaining",
+              "type": "number"
+            },
+            "stock_status": {
+              "default": "ok",
+              "description": "Current inventory status. Use \"ok\", \"low\", \"empty\", \"used\", \"expired\", or \"removed\".",
+              "title": "Stock Status",
+              "type": "string"
+            },
+            "expiry_date": {
+              "default": "",
+              "description": "Expiry or use-by date in YYYY-MM-DD format. Leave blank if unknown.",
+              "title": "Expiry Date",
+              "type": "string"
+            },
+            "notes": {
+              "default": "",
+              "description": "Optional notes about the item. Example: \"Use soon\" or \"Added during grocery shop\".",
+              "title": "Notes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "food_item"
+          ],
+          "title": "add_inventory_itemArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "update_inventory_item",
+        "description": "\nUpdate an existing inventory item by stock_id.\n\nOnly fields provided by the caller are updated.\nFields left as None are not changed.\n\nUse this tool when the user wants to:\n- correct an inventory item\n- change quantity or servings remaining\n- update stock status\n- update expiry date\n- move an item to a different location\n- add or clear notes\n",
+        "inputSchema": {
+          "properties": {
+            "stock_id": {
+              "title": "Stock Id",
+              "type": "string"
+            },
+            "food_item": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Food Item"
+            },
+            "brand": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Brand"
+            },
+            "category": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Category"
+            },
+            "location": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Location"
+            },
+            "quantity": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Quantity"
+            },
+            "unit": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Unit"
+            },
+            "servings_remaining": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Servings Remaining"
+            },
+            "stock_status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Stock Status"
+            },
+            "expiry_date": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Expiry Date"
+            },
+            "notes": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Notes"
+            }
+          },
+          "required": [
+            "stock_id"
+          ],
+          "title": "update_inventory_itemArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "remove_inventory_item",
+        "description": "\nRemove an item from active inventory.\n\nUse this when the user says an item should leave active inventory,\nincluding when it was used up, expired, spoiled, discarded, duplicated,\nincorrectly added, or no longer available.\n\nThis tool records a food waste entry only when removal_type is one of:\n- expired\n- spoiled\n- discarded\n- unused\n- overbought\n- did_not_like\n\nThis tool does not record food waste when removal_type is one of:\n- used_up\n- duplicate_entry\n- incorrect_entry\n- test_entry\n- unknown\n\nIf quantity_wasted or servings_wasted are not supplied for a waste-type\nremoval, the service uses the item's current remaining quantity and\nservings as the estimated wasted amount.\n",
+        "inputSchema": {
+          "properties": {
+            "stock_id": {
+              "title": "Stock Id",
+              "type": "string"
+            },
+            "removal_type": {
+              "default": "unknown",
+              "title": "Removal Type",
+              "type": "string"
+            },
+            "removal_reason": {
+              "default": "",
+              "title": "Removal Reason",
+              "type": "string"
+            },
+            "quantity_wasted": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Quantity Wasted"
+            },
+            "servings_wasted": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Servings Wasted"
+            },
+            "tracking_confidence": {
+              "default": "medium",
+              "title": "Tracking Confidence",
+              "type": "string"
+            },
+            "notes": {
+              "default": "",
+              "title": "Notes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "stock_id"
+          ],
+          "title": "remove_inventory_itemArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_recent_intake",
+        "description": "\nGet recent food intake records from the user's intake history.\n",
+        "inputSchema": {
+          "properties": {
+            "days_back": {
+              "default": 7,
+              "title": "Days Back",
+              "type": "integer"
+            },
+            "meal_type": {
+              "default": "",
+              "title": "Meal Type",
+              "type": "string"
+            }
+          },
+          "title": "get_recent_intakeArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Result",
+              "type": "array"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "title": "get_recent_intakeOutput",
+          "type": "object"
+        }
+      },
+      {
+        "name": "get_daily_intake_summary",
+        "description": "\nGet all logged meals, food items, and calculated nutrition totals\nfor a specific date in YYYY-MM-DD format.\n",
+        "inputSchema": {
+          "properties": {
+            "date": {
+              "title": "Date",
+              "type": "string"
+            }
+          },
+          "required": [
+            "date"
+          ],
+          "title": "get_daily_intake_summaryArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_intake_entry",
+        "description": "\nAdd a meal or eating event to the user's intake history.\n\nThis creates the parent intake entry only. It does not automatically\ndeduct inventory or create waste records.\n",
+        "inputSchema": {
+          "properties": {
+            "date": {
+              "title": "Date",
+              "type": "string"
+            },
+            "meal_name": {
+              "title": "Meal Name",
+              "type": "string"
+            },
+            "time": {
+              "default": "",
+              "title": "Time",
+              "type": "string"
+            },
+            "meal_type": {
+              "default": "meal",
+              "title": "Meal Type",
+              "type": "string"
+            },
+            "meal_description": {
+              "default": "",
+              "title": "Meal Description",
+              "type": "string"
+            },
+            "source": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            },
+            "amount_eaten": {
+              "default": "",
+              "title": "Amount Eaten",
+              "type": "string"
+            },
+            "portion_confidence": {
+              "default": "medium",
+              "title": "Portion Confidence",
+              "type": "string"
+            },
+            "total_calories_estimate": {
+              "default": 0,
+              "title": "Total Calories Estimate",
+              "type": "number"
+            },
+            "total_protein_g_estimate": {
+              "default": 0,
+              "title": "Total Protein G Estimate",
+              "type": "number"
+            },
+            "total_carbs_g_estimate": {
+              "default": 0,
+              "title": "Total Carbs G Estimate",
+              "type": "number"
+            },
+            "total_fat_g_estimate": {
+              "default": 0,
+              "title": "Total Fat G Estimate",
+              "type": "number"
+            },
+            "total_fibre_g_estimate": {
+              "default": 0,
+              "title": "Total Fibre G Estimate",
+              "type": "number"
+            },
+            "total_sugar_g_estimate": {
+              "default": 0,
+              "title": "Total Sugar G Estimate",
+              "type": "number"
+            },
+            "total_sodium_mg_estimate": {
+              "default": 0,
+              "title": "Total Sodium Mg Estimate",
+              "type": "number"
+            },
+            "nutrition_confidence": {
+              "default": "medium",
+              "title": "Nutrition Confidence",
+              "type": "string"
+            },
+            "was_finished": {
+              "default": "unknown",
+              "title": "Was Finished",
+              "type": "string"
+            },
+            "leftovers_created": {
+              "default": "unknown",
+              "title": "Leftovers Created",
+              "type": "string"
+            },
+            "hunger_before": {
+              "default": "",
+              "title": "Hunger Before",
+              "type": "string"
+            },
+            "hunger_after": {
+              "default": "",
+              "title": "Hunger After",
+              "type": "string"
+            },
+            "notes": {
+              "default": "",
+              "title": "Notes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "meal_name"
+          ],
+          "title": "add_intake_entryArguments",
+          "type": "object"
+        }
+      },
+      {
+        "name": "add_intake_item",
+        "description": "\nAdd a food item, ingredient, or component to an existing intake entry.\n\nOptional stock_id values are validated by the service layer when supplied.\nThis first version does not automatically change inventory.\n",
+        "inputSchema": {
+          "properties": {
+            "intake_id": {
+              "title": "Intake Id",
+              "type": "string"
+            },
+            "food_item": {
+              "title": "Food Item",
+              "type": "string"
+            },
+            "brand": {
+              "default": "",
+              "title": "Brand",
+              "type": "string"
+            },
+            "category": {
+              "default": "",
+              "title": "Category",
+              "type": "string"
+            },
+            "source": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            },
+            "stock_id": {
+              "default": "",
+              "title": "Stock Id",
+              "type": "string"
+            },
+            "amount_eaten": {
+              "default": "",
+              "title": "Amount Eaten",
+              "type": "string"
+            },
+            "servings_used": {
+              "default": 0,
+              "title": "Servings Used",
+              "type": "number"
+            },
+            "calories_estimate": {
+              "default": 0,
+              "title": "Calories Estimate",
+              "type": "number"
+            },
+            "protein_g_estimate": {
+              "default": 0,
+              "title": "Protein G Estimate",
+              "type": "number"
+            },
+            "carbs_g_estimate": {
+              "default": 0,
+              "title": "Carbs G Estimate",
+              "type": "number"
+            },
+            "fat_g_estimate": {
+              "default": 0,
+              "title": "Fat G Estimate",
+              "type": "number"
+            },
+            "fibre_g_estimate": {
+              "default": 0,
+              "title": "Fibre G Estimate",
+              "type": "number"
+            },
+            "sugar_g_estimate": {
+              "default": 0,
+              "title": "Sugar G Estimate",
+              "type": "number"
+            },
+            "sodium_mg_estimate": {
+              "default": 0,
+              "title": "Sodium Mg Estimate",
+              "type": "number"
+            },
+            "nutrition_confidence": {
+              "default": "medium",
+              "title": "Nutrition Confidence",
+              "type": "string"
+            },
+            "notes": {
+              "default": "",
+              "title": "Notes",
+              "type": "string"
+            }
+          },
+          "required": [
+            "intake_id",
+            "food_item"
+          ],
+          "title": "add_intake_itemArguments",
+          "type": "object"
+        }
+      }
+    ]
+  }
+}

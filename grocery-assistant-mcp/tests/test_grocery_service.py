@@ -158,7 +158,7 @@ def test_list_inventory_items_can_filter_low_stock_only():
 
     assert isinstance(items, list)
 
-    allowed_statuses = {"low", "very low", "empty"}
+    allowed_statuses = {"low", "very low", "empty", "out"}
 
     for item in items:
         assert item.get("stock_status", "").lower() in allowed_statuses

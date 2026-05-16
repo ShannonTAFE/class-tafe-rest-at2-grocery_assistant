@@ -1,0 +1,2 @@
+waste_id,stock_id,food_item,brand,category,location,initial_quantity,initial_unit,initial_servings,quantity_wasted,unit,servings_wasted,estimated_quantity_consumed,estimated_servings_consumed,date_added,expiry_date,wasted_at,waste_type,waste_reason,tracking_confidence,notes
+waste_001,inv_001,Yoghurt,Farmers Union,dairy,fridge,1000,g,10,150,g,1.5,850,8.5,2026-05-16,2026-05-25,2026-05-25,expired,Expired before finishing,medium,Most of the tub was used

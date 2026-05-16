@@ -559,7 +559,12 @@ Invoke-McpCurl "curl_requests/04_read_inventory.json"
 Invoke-McpCurl "curl_requests/05_tools_list.json"
 Invoke-McpCurl "curl_requests/06_prompts_list.json"
 Invoke-McpCurl "curl_requests/07_add_inventory_item.json"
-Invoke-McpCurl "curl_requests/04_read_inventory.json"
+Invoke-McpCurl "curl_requests/08_add_inventory_missing_food_item.json"
+Invoke-McpCurl "curl_requests/09_add_inventory_invalid_date.json"
+Invoke-McpCurl "curl_requests/10_add_inventory_negative_quantity.json"
+Invoke-McpCurl "curl_requests/11_add_yoghurt.json"
+Invoke-McpCurl "curl_requests/12_remove_yoghurt_expired.json"
+Invoke-McpCurl "curl_requests/13_remove_item_used_up.json"
 ```
 
 ---

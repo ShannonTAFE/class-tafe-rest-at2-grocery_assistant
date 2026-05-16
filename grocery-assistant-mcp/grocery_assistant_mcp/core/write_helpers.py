@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -81,6 +82,29 @@ def validate_required_choice(
     return cleaned
 
 
+def validate_non_negative_number(value: object, field_name: str) -> float:
+    """
+    Validate that a value is a finite non-negative number.
+
+    Returns the cleaned float so callers do not need to convert it again.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a number, not a boolean.")
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} must be a number.")
+
+    if not math.isfinite(number):
+        raise ValueError(f"{field_name} must be a finite number.")
+
+    if number < 0:
+        raise ValueError(f"{field_name} must not be negative.")
+
+    return number
+
+
 def validate_non_negative_fields(values: dict[str, object]) -> dict[str, float]:
     """
     Validate multiple numeric fields and return them as floats.
@@ -88,10 +112,71 @@ def validate_non_negative_fields(values: dict[str, object]) -> dict[str, float]:
     cleaned_values = {}
 
     for field_name, value in values.items():
-        validate_non_negative_number(value, field_name)
-        cleaned_values[field_name] = float(value)
+        cleaned_values[field_name] = validate_non_negative_number(value, field_name)
 
     return cleaned_values
+
+
+def validate_date_or_blank(value: object, field_name: str = "date") -> None:
+    """
+    Validate YYYY-MM-DD date format.
+
+    Blank dates are allowed because some inventory items may not have expiry dates.
+    """
+    if value is None or str(value).strip() == "":
+        return
+
+    try:
+        datetime.strptime(str(value).strip(), "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"{field_name} must use YYYY-MM-DD format.")
+
+
+def validate_required_date(value: object, field_name: str = "date") -> str:
+    """
+    Validate a required YYYY-MM-DD date and return the cleaned date string.
+    """
+    cleaned = clean_text(value, field_name, required=True)
+    validate_date_or_blank(cleaned, field_name)
+    return cleaned
+
+
+def validate_time_or_blank(value: object, field_name: str = "time") -> None:
+    """
+    Validate HH:MM time format.
+
+    Blank times are allowed because some entries may be approximate.
+    """
+    if value is None or str(value).strip() == "":
+        return
+
+    try:
+        datetime.strptime(str(value).strip(), "%H:%M")
+    except ValueError:
+        raise ValueError(f"{field_name} must use HH:MM format.")
+
+
+def validate_int_range(
+    value: object,
+    field_name: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    """
+    Validate an integer within a closed range.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be an integer, not a boolean.")
+
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} must be an integer.")
+
+    if number < minimum or number > maximum:
+        raise ValueError(f"{field_name} must be between {minimum} and {maximum}.")
+
+    return number
 
 
 def ensure_parent_dir(path: Path) -> None:
@@ -116,7 +201,8 @@ def backup_csv(csv_path: Path, backup_dir: Path | None = None) -> Path | None:
 
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Microseconds reduce collision risk during rapid write tests.
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     backup_name = f"{csv_path.stem}_{timestamp}{csv_path.suffix}"
     backup_path = backup_dir / backup_name
 
@@ -130,6 +216,8 @@ def read_csv_for_write(csv_path: Path, columns: list[str]) -> pd.DataFrame:
     Read a CSV for writing.
 
     If the file does not exist, return an empty DataFrame with the expected columns.
+    Missing expected columns are added as blanks. Extra columns are ignored to keep
+    service writes aligned with the declared schema.
     """
     csv_path = Path(csv_path)
 
@@ -145,11 +233,29 @@ def read_csv_for_write(csv_path: Path, columns: list[str]) -> pd.DataFrame:
     return df[columns]
 
 
-def save_csv(df: pd.DataFrame, csv_path: Path) -> None:
-    """Save a DataFrame to CSV safely."""
+def save_csv_atomic(df: pd.DataFrame, csv_path: Path) -> None:
+    """
+    Save a DataFrame to CSV using a temporary file first.
+
+    This reduces the chance of leaving a half-written CSV if an error occurs
+    during the write.
+    """
     csv_path = Path(csv_path)
     ensure_parent_dir(csv_path)
-    df.to_csv(csv_path, index=False)
+
+    temp_path = csv_path.with_suffix(csv_path.suffix + ".tmp")
+
+    try:
+        df.to_csv(temp_path, index=False)
+        temp_path.replace(csv_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def save_csv(df: pd.DataFrame, csv_path: Path) -> None:
+    """Save a DataFrame to CSV safely."""
+    save_csv_atomic(df, csv_path)
 
 
 def generate_next_id(
@@ -188,49 +294,4 @@ def generate_next_id(
 
 def require_non_empty(value: object, field_name: str) -> None:
     """Raise ValueError if a required value is missing."""
-    if value is None:
-        raise ValueError(f"{field_name} is required.")
-
-    if isinstance(value, str) and not value.strip():
-        raise ValueError(f"{field_name} is required.")
-
-
-def validate_non_negative_number(value: object, field_name: str) -> None:
-    """Validate that a value can be treated as a non-negative number."""
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        raise ValueError(f"{field_name} must be a number.")
-
-    if number < 0:
-        raise ValueError(f"{field_name} must not be negative.")
-
-
-def validate_date_or_blank(value: str, field_name: str = "date") -> None:
-    """
-    Validate YYYY-MM-DD date format.
-
-    Blank dates are allowed because some inventory items may not have expiry dates.
-    """
-    if value is None or str(value).strip() == "":
-        return
-
-    try:
-        datetime.strptime(str(value), "%Y-%m-%d")
-    except ValueError:
-        raise ValueError(f"{field_name} must use YYYY-MM-DD format.")
-
-
-def validate_time_or_blank(value: str, field_name: str = "time") -> None:
-    """
-    Validate HH:MM time format.
-
-    Blank times are allowed because some entries may be approximate.
-    """
-    if value is None or str(value).strip() == "":
-        return
-
-    try:
-        datetime.strptime(str(value), "%H:%M")
-    except ValueError:
-        raise ValueError(f"{field_name} must use HH:MM format.")
+    clean_text(value, field_name, required=True)
