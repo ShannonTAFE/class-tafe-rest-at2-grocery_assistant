@@ -1,20 +1,21 @@
-intake_item_id,intake_id,item_number,food_item,brand,category,stock_id,amount_used,servings_used,portion_confidence,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
-ITEM-0001,INTAKE-0001,1,Rolled oats,Generic / supermarket brand,Grain,STOCK-0007,40g,1,Medium,155,5,24,4,4,1,2,Medium,Base porridge ingredient
-ITEM-0002,INTAKE-0001,2,Full cream milk,Generic / supermarket brand,Dairy,STOCK-0001,125ml,0.5,Medium,80,4.3,6,4.3,0,6,50,Medium,Half serving of milk
-ITEM-0003,INTAKE-0001,3,Bananas,,Fruit,STOCK-0013,1 medium banana,1,High,105,1.3,27,0.4,3,14,1,Medium,Fresh produce size varies
-ITEM-0004,INTAKE-0003,1,Chicken breast,,Meat,STOCK-0017,200g raw,1,Medium,240,46,0,5,0,0,120,Medium,Weighing improves accuracy
-ITEM-0005,INTAKE-0003,2,White rice,Generic / supermarket brand,Grain,STOCK-0004,75g dry,1,Medium,270,5,60,0.5,1,0,5,Medium,Dry weight estimate
-ITEM-0006,INTAKE-0003,3,Broccoli,,Vegetable,STOCK-0015,150g,1.5,Low,53,3.8,10.5,0.6,4.5,2.3,60,Medium,Vegetable portion visually estimated
-ITEM-0007,INTAKE-0004,1,Pasta,Generic / supermarket brand,Grain,STOCK-0006,80g dry pasta,1,Medium,285,10,57,1.5,3,2,10,Medium,Spag bog pasta component
-ITEM-0008,INTAKE-0004,2,Beef mince,,Meat,STOCK-0018,125g raw beef mince,1,Medium,250,25,0,17,0,0,75,Low,Fat content varies by mince type
-ITEM-0009,INTAKE-0004,3,Canned diced tomatoes,Generic / supermarket brand,Canned vegetables,STOCK-0010,200g,1,Medium,40,2,7,0.5,3,6,250,Medium,Sauce base
-ITEM-0010,INTAKE-0004,4,Olive oil,Generic / supermarket brand,Cooking oil,STOCK-0022,1 tbsp,1,Low,120,0,0,14,0,0,0,High,Easy to underestimate
-ITEM-0011,INTAKE-0004,5,Cheddar cheese,Generic / supermarket brand,Dairy,STOCK-0020,30g,1,Medium,125,7.5,0.5,10,0,0.2,180,Medium,Topping
-ITEM-0012,INTAKE-0005,1,Pasta,Generic / supermarket brand,Grain,STOCK-0006,80g dry pasta,1,Medium,285,10,57,1.5,3,2,10,Medium,Scaled from 320g dry pasta batch divided by 4 serves
-ITEM-0013,INTAKE-0005,2,Beef mince,,Meat,STOCK-0018,125g raw beef mince,1,Medium,250,25,0,17,0,0,75,Low,Scaled from 500g mince batch divided by 4 serves
-ITEM-0014,INTAKE-0005,3,Canned diced tomatoes,Generic / supermarket brand,Canned vegetables,STOCK-0010,200g,1,Medium,40,2,7,0.5,3,6,250,Medium,Scaled from 2 x 400g cans divided by 4 serves
-ITEM-0015,INTAKE-0005,4,Olive oil,Generic / supermarket brand,Cooking oil,STOCK-0022,0.5 tbsp,0.5,Low,60,0,0,7,0,0,0,High,Scaled from 2 tbsp batch divided by 4 serves
-ITEM-0016,INTAKE-0005,5,Cheddar cheese,Generic / supermarket brand,Dairy,STOCK-0020,30g,1,Medium,125,7.5,0.5,10,0,0.2,180,Medium,Scaled from 120g cheese batch divided by 4 serves
-ITEM-0017,INTAKE-0006,1,Canned tuna in springwater,Generic / supermarket brand,Canned protein,STOCK-0008,95g can,1,High,100,21,0,1,0,0,300,Medium,One can
-ITEM-0018,INTAKE-0006,2,Wholemeal bread,Generic / supermarket brand,Bread,STOCK-0002,2 slices,1,High,180,8,30,3,5,4,350,Medium,Bread component
-ITEM-0019,INTAKE-0006,3,Cheddar cheese,Generic / supermarket brand,Dairy,STOCK-0020,30g,1,Medium,125,7.5,0.5,10,0,0.2,180,Medium,Cheese slice or grated cheese estimate
+intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
+ITEM-0001,INTAKE-0001,Rolled oats,Generic / supermarket brand,Grain,,STOCK-0007,,1.0,155.0,5.0,24.0,4.0,4.0,1.0,2.0,Medium,Base porridge ingredient
+ITEM-0002,INTAKE-0001,Full cream milk,Generic / supermarket brand,Dairy,,STOCK-0001,,0.5,80.0,4.3,6.0,4.3,0.0,6.0,50.0,Medium,Half serving of milk
+ITEM-0003,INTAKE-0001,Bananas,,Fruit,,STOCK-0013,,1.0,105.0,1.3,27.0,0.4,3.0,14.0,1.0,Medium,Fresh produce size varies
+ITEM-0004,INTAKE-0003,Chicken breast,,Meat,,STOCK-0017,,1.0,240.0,46.0,0.0,5.0,0.0,0.0,120.0,Medium,Weighing improves accuracy
+ITEM-0005,INTAKE-0003,White rice,Generic / supermarket brand,Grain,,STOCK-0004,,1.0,270.0,5.0,60.0,0.5,1.0,0.0,5.0,Medium,Dry weight estimate
+ITEM-0006,INTAKE-0003,Broccoli,,Vegetable,,STOCK-0015,,1.5,53.0,3.8,10.5,0.6,4.5,2.3,60.0,Medium,Vegetable portion visually estimated
+ITEM-0007,INTAKE-0004,Pasta,Generic / supermarket brand,Grain,,STOCK-0006,,1.0,285.0,10.0,57.0,1.5,3.0,2.0,10.0,Medium,Spag bog pasta component
+ITEM-0008,INTAKE-0004,Beef mince,,Meat,,STOCK-0018,,1.0,250.0,25.0,0.0,17.0,0.0,0.0,75.0,Low,Fat content varies by mince type
+ITEM-0009,INTAKE-0004,Canned diced tomatoes,Generic / supermarket brand,Canned vegetables,,STOCK-0010,,1.0,40.0,2.0,7.0,0.5,3.0,6.0,250.0,Medium,Sauce base
+ITEM-0010,INTAKE-0004,Olive oil,Generic / supermarket brand,Cooking oil,,STOCK-0022,,1.0,120.0,0.0,0.0,14.0,0.0,0.0,0.0,High,Easy to underestimate
+ITEM-0011,INTAKE-0004,Cheddar cheese,Generic / supermarket brand,Dairy,,STOCK-0020,,1.0,125.0,7.5,0.5,10.0,0.0,0.2,180.0,Medium,Topping
+ITEM-0012,INTAKE-0005,Pasta,Generic / supermarket brand,Grain,,STOCK-0006,,1.0,285.0,10.0,57.0,1.5,3.0,2.0,10.0,Medium,Scaled from 320g dry pasta batch divided by 4 serves
+ITEM-0013,INTAKE-0005,Beef mince,,Meat,,STOCK-0018,,1.0,250.0,25.0,0.0,17.0,0.0,0.0,75.0,Low,Scaled from 500g mince batch divided by 4 serves
+ITEM-0014,INTAKE-0005,Canned diced tomatoes,Generic / supermarket brand,Canned vegetables,,STOCK-0010,,1.0,40.0,2.0,7.0,0.5,3.0,6.0,250.0,Medium,Scaled from 2 x 400g cans divided by 4 serves
+ITEM-0015,INTAKE-0005,Olive oil,Generic / supermarket brand,Cooking oil,,STOCK-0022,,0.5,60.0,0.0,0.0,7.0,0.0,0.0,0.0,High,Scaled from 2 tbsp batch divided by 4 serves
+ITEM-0016,INTAKE-0005,Cheddar cheese,Generic / supermarket brand,Dairy,,STOCK-0020,,1.0,125.0,7.5,0.5,10.0,0.0,0.2,180.0,Medium,Scaled from 120g cheese batch divided by 4 serves
+ITEM-0017,INTAKE-0006,Canned tuna in springwater,Generic / supermarket brand,Canned protein,,STOCK-0008,,1.0,100.0,21.0,0.0,1.0,0.0,0.0,300.0,Medium,One can
+ITEM-0018,INTAKE-0006,Wholemeal bread,Generic / supermarket brand,Bread,,STOCK-0002,,1.0,180.0,8.0,30.0,3.0,5.0,4.0,350.0,Medium,Bread component
+ITEM-0019,INTAKE-0006,Cheddar cheese,Generic / supermarket brand,Dairy,,STOCK-0020,,1.0,125.0,7.5,0.5,10.0,0.0,0.2,180.0,Medium,Cheese slice or grated cheese estimate
+intake_item_001,intake_001,Spaghetti,San Remo,pantry,home,,1 serve,1.0,320.0,11.0,62.0,2.0,4.0,2.0,20.0,medium,Component of spaghetti bolognese

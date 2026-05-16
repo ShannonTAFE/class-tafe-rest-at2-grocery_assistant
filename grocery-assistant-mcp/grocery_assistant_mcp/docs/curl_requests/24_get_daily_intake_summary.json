@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 24,
+  "method": "tools/call",
+  "params": {
+    "name": "get_daily_intake_summary",
+    "arguments": {
+      "date": "2026-05-17"
+    }
+  }
+}

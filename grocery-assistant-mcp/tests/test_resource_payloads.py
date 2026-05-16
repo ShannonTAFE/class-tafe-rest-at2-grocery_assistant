@@ -9,6 +9,8 @@ from grocery_assistant_mcp.core.grocery_service import (
     read_inventory,
     get_daily_intake_summary,
     to_json,
+    list_food_waste_items,
+    read_food_waste,
 )
 
 
@@ -118,3 +120,34 @@ def test_get_daily_intake_summary_payload_has_client_friendly_sections():
     assert isinstance(parsed["meals"], list)
     assert isinstance(parsed["items"], list)
     assert isinstance(parsed["nutrition_totals"], dict)
+    
+def test_food_waste_records_can_be_converted_to_json():
+    df = read_food_waste()
+    records = df_to_records(df)
+    payload = to_json(records)
+
+    parsed = json.loads(payload)
+
+    assert isinstance(payload, str)
+    assert isinstance(parsed, list)
+
+
+def test_list_food_waste_items_payload_is_valid_json():
+    items = list_food_waste_items()
+    payload = to_json(items)
+
+    parsed = json.loads(payload)
+
+    assert isinstance(parsed, list)
+
+
+def test_list_expired_food_waste_items_payload_is_valid_json():
+    items = list_food_waste_items(waste_type="expired")
+    payload = to_json(items)
+
+    parsed = json.loads(payload)
+
+    assert isinstance(parsed, list)
+
+    for item in parsed:
+        assert item.get("waste_type", "").lower() == "expired"

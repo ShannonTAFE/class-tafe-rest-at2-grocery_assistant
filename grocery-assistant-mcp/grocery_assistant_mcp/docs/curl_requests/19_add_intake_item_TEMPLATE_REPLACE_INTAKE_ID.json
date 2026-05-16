@@ -1,0 +1,28 @@
+{
+  "jsonrpc": "2.0",
+  "id": 19,
+  "method": "tools/call",
+  "params": {
+    "name": "add_intake_item",
+    "arguments": {
+      "intake_id": "intake_001",
+      "food_item": "Spaghetti",
+      "brand": "San Remo",
+      "category": "pantry",
+      "source": "home",
+      "stock_id": "",
+      "amount_eaten": "1 serve",
+      "servings_used": 1,
+      "portion_confidence": "medium",
+      "calories_estimate": 320,
+      "protein_g_estimate": 11,
+      "carbs_g_estimate": 62,
+      "fat_g_estimate": 2,
+      "fibre_g_estimate": 4,
+      "sugar_g_estimate": 2,
+      "sodium_mg_estimate": 20,
+      "nutrition_confidence": "medium",
+      "notes": "Component of spaghetti bolognese"
+    }
+  }
+}

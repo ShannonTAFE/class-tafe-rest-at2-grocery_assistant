@@ -1,0 +1,2 @@
+stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
+inv_001,Yoghurt,Farmers Union,dairy,fridge,1000,g,10,1000,10,ok,2026-05-25,2026-05-16,Greek yoghurt tub

@@ -1,0 +1,9 @@
+intake_id,date,time,meal_type,meal_name,meal_description,source,amount_eaten,portion_confidence,total_calories_estimate,total_protein_g_estimate,total_carbs_g_estimate,total_fat_g_estimate,total_fibre_g_estimate,total_sugar_g_estimate,total_sodium_mg_estimate,nutrition_confidence,was_finished,leftovers_created,hunger_before,hunger_after,notes
+INTAKE-0001,2026-05-10,08:00,Breakfast,Porridge with banana,Rolled oats with milk and one banana,Home,1 bowl,Medium,340.0,10.6,57.0,8.7,7.0,21.0,53.0,Medium,,,6.0,,Common breakfast example
+INTAKE-0002,2026-05-10,10:30,Snack,Apple,One medium apple,Home,1 medium apple,High,95.0,0.5,25.0,0.3,4.0,19.0,2.0,Medium,,,,,Simple single item; item breakdown not required
+INTAKE-0003,2026-05-10,12:30,Lunch,Chicken rice bowl,Chicken breast with white rice and broccoli,Home,1 bowl,Medium,563.0,54.8,70.5,6.1,5.5,2.3,185.0,Medium,,,7.0,,Meal calculated from linked item rows
+INTAKE-0004,2026-05-10,18:30,Dinner,Spaghetti bolognese,"Spaghetti bolognese with beef mince, pasta, canned tomatoes, olive oil and cheese",Home,1 large bowl,Medium,820.0,44.5,64.5,43.0,6.0,8.2,515.0,Medium,,,7.0,,Spag bog example with individual ingredient rows
+INTAKE-0005,2026-05-11,18:45,Dinner,Spaghetti bolognese,Leftover spaghetti bolognese from batch cook,Home,1 serve,Medium,760.0,42.0,86.0,25.0,8.0,10.0,650.0,Medium,,,,,Ingredients scaled to one serve from batch
+INTAKE-0006,2026-05-11,12:15,Lunch,Tuna sandwich,Tuna sandwich with wholemeal bread and cheese,Home,1 sandwich,Medium,405.0,36.5,30.5,14.0,5.0,4.2,830.0,Medium,,,,,Lunch example with pantry/fridge items
+INTAKE-0007,2026-05-11,15:30,Snack,Greek yoghurt,Small bowl of Greek yoghurt,Home,1 small bowl,Medium,113.0,13.5,6.0,3.8,0.0,5.3,68.0,Low,,,,,Single item; exact yoghurt type may vary
+intake_001,2026-05-17,18:30,dinner,Spaghetti bolognese,Home cooked batch meal,home,1 large bowl,medium,760.0,42.0,86.0,25.0,8.0,10.0,650.0,medium,yes,yes,7,3,Added during Version 1.1 curl test

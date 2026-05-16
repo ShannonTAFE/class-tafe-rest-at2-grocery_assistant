@@ -1,0 +1,20 @@
+stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,stock_status,expiry_date,notes
+inv_001,Spaghetti,San Remo,pantry,cupboard,1.0,packet,5.0,ok,2026-12-01,Dry pasta
+inv_002,Beef mince,Coles,protein,freezer,500.0,g,4.0,ok,2026-06-15,Frozen
+inv_003,Canned tomatoes,Woolworths,pantry,cupboard,2.0,cans,4.0,ok,2027-01-01,Good for pasta sauce
+inv_004,Onion,,vegetable,fridge,1.0,item,1.0,low,2026-05-14,Use soon
+inv_005,Garlic,,vegetable,pantry,1.0,bulb,8.0,ok,2026-05-30,
+inv_006,Greek yoghurt,Chobani,dairy,fridge,200.0,g,2.0,low,2026-05-12,
+inv_007,Rolled oats,Uncle Tobys,pantry,cupboard,1.0,bag,10.0,ok,2026-12-01,Added during Version 1.1 curl test
+inv_008,Milk,Brownes,dairy,fridge,1.0,bottle,4.0,ok,2026-05-18,Full cream
+inv_009,Pasta,San Remo,pantry,cupboard,1.0,packet,5.0,ok,2026-12-01,Spaghetti
+inv_010,Bread,Tip Top,bakery,pantry,1.0,loaf,8.0,ok,2026-05-19,Wholemeal
+inv_011,Milk,Brownes,dairy,fridge,1.0,bottle,4.0,ok,2026-05-18,Full cream
+inv_012,Pasta,San Remo,pantry,cupboard,1.0,packet,5.0,ok,2026-12-01,Spaghetti
+inv_013,Bread,Tip Top,bakery,pantry,1.0,loaf,8.0,ok,2026-05-19,Wholemeal
+inv_014,Rice,SunRice,pantry,cupboard,1.0,bag,5.0,ok,2026-12-01,Jasmine rice
+inv_015,Greek yoghurt,Chobani,dairy,fridge,1.0,tub,4.0,ok,2026-05-20,Plain yoghurt
+inv_016,Milk,Brownes,dairy,fridge,1.0,bottle,4.0,ok,2026-05-18,Full cream
+inv_017,Pasta,San Remo,pantry,cupboard,1.0,packet,5.0,ok,2026-12-01,Spaghetti
+inv_018,bread,Tip Top,bakery,freezer,1.0,loaf,8.0,ok,2026-05-19,Wholemeal
+inv_019,banana,,fruit,Countertop,5.0,,5.0,ok,,

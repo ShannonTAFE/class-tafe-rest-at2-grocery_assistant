@@ -1,0 +1,3 @@
+stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
+inv_001,Yoghurt,Farmers Union,dairy,fridge,1000.0,g,10.0,1000.0,10.0,ok,2026-05-25,2026-05-16,Greek yoghurt tub
+inv_002,Brown Rice,Sunrice,carbs,pantry,10.0,kg,0.0,10.0,0.0,ok,,2026-05-16,

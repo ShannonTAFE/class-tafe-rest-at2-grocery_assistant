@@ -1,5 +1,6 @@
 {
   "jsonrpc": "2.0",
-  "id": 4,
-  "method": "tools/list"
+  "id": 5,
+  "method": "tools/list",
+  "params": {}
 }
