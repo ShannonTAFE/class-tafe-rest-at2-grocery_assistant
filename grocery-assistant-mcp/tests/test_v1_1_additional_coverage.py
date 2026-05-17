@@ -1,17 +1,5 @@
 """
-Additional Version 1.1 completion tests.
-
-Add this file to:
-
-tests/test_v1_1_additional_coverage.py
-
-These tests focus on the remaining Version 1.1 checklist gaps:
-- stricter inventory validation
-- search by location
-- removal-type coverage for waste vs non-waste outcomes
-- recent intake filters
-- daily intake hybrid item/meal fallback behaviour
-- stricter intake validation
+Additional Version 1.1 completion tests, updated for the Version 1.3 schema.
 """
 
 from __future__ import annotations
@@ -29,6 +17,11 @@ def temp_grocery_csv_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(gs, "INVENTORY_PATH", tmp_path / "user_inventory.csv")
     monkeypatch.setattr(gs, "INTAKE_HISTORY_PATH", tmp_path / "user_intake_history.csv")
     monkeypatch.setattr(gs, "INTAKE_ITEMS_PATH", tmp_path / "user_intake_items.csv")
+    monkeypatch.setattr(
+        gs,
+        "INVENTORY_CONSUMPTION_PATH",
+        tmp_path / "user_inventory_consumption.csv",
+    )
     monkeypatch.setattr(gs, "FOOD_WASTE_PATH", tmp_path / "user_food_waste.csv")
     return tmp_path
 
@@ -46,7 +39,7 @@ def test_search_inventory_filters_by_location(temp_grocery_csv_paths):
         quantity=500,
         unit="g",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
     )
     gs.add_inventory_item(
         food_item="Greek yoghurt",
@@ -55,7 +48,7 @@ def test_search_inventory_filters_by_location(temp_grocery_csv_paths):
         quantity=1,
         unit="tub",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     results = gs.search_inventory(location="freezer")
@@ -72,7 +65,7 @@ def test_add_inventory_item_rejects_negative_servings_remaining(temp_grocery_csv
             quantity=1,
             unit="bottle",
             servings_remaining=-1,
-            stock_status="ok",
+            stock_status="in_stock",
         )
 
 
@@ -83,7 +76,7 @@ def test_add_inventory_item_rejects_invalid_expiry_date(temp_grocery_csv_paths):
             quantity=1,
             unit="bottle",
             servings_remaining=4,
-            stock_status="ok",
+            stock_status="in_stock",
             expiry_date="16/05/2026",
         )
 
@@ -110,7 +103,7 @@ def test_update_inventory_item_rejects_negative_servings_remaining(temp_grocery_
         quantity=1,
         unit="bag",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     with pytest.raises(ValueError):
@@ -126,7 +119,7 @@ def test_update_inventory_item_rejects_invalid_expiry_date(temp_grocery_csv_path
         quantity=1,
         unit="bag",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     with pytest.raises(ValueError):
@@ -162,10 +155,7 @@ def test_remove_inventory_item_rejects_unknown_stock_id(temp_grocery_csv_paths):
         "did_not_like",
     ],
 )
-def test_waste_removal_types_create_waste_records(
-    temp_grocery_csv_paths,
-    removal_type,
-):
+def test_waste_removal_types_create_waste_records(temp_grocery_csv_paths, removal_type):
     created = gs.add_inventory_item(
         food_item=f"Test item {removal_type}",
         category="test",
@@ -173,7 +163,7 @@ def test_waste_removal_types_create_waste_records(
         quantity=2,
         unit="unit",
         servings_remaining=2,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     result = gs.remove_inventory_item(
@@ -215,7 +205,7 @@ def test_non_waste_removal_types_do_not_create_waste_records(
         quantity=1,
         unit="unit",
         servings_remaining=1,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     result = gs.remove_inventory_item(
@@ -300,6 +290,17 @@ def test_add_intake_item_rejects_blank_food_item(temp_grocery_csv_paths):
         )
 
 
+def test_add_intake_item_rejects_negative_quantity_used(temp_grocery_csv_paths):
+    meal = gs.add_intake_entry(date="2026-05-16", meal_name="Toast")
+
+    with pytest.raises(ValueError):
+        gs.add_intake_item(
+            intake_id=meal["item"]["intake_id"],
+            food_item="Bread",
+            quantity_used=-1,
+        )
+
+
 def test_add_intake_item_rejects_negative_servings_used(temp_grocery_csv_paths):
     meal = gs.add_intake_entry(date="2026-05-16", meal_name="Toast")
 
@@ -365,14 +366,7 @@ def test_daily_summary_uses_item_totals_and_meal_level_fallback(
 
     assert summary["meal_count"] == 2
     assert summary["item_count"] == 2
-
     assert meal_with_items["item"]["intake_id"] in summary["meal_ids_using_item_totals"]
     assert meal_without_items["item"]["intake_id"] in summary["meal_ids_using_meal_totals"]
-
-    # Item-level total for meal_with_items: 180 + 140 = 320
-    # Meal-level fallback for meal_without_items: 500
     assert summary["nutrition_totals"]["calories_estimate"] == 820.0
-
-    # Item-level protein for meal_with_items: 6 + 12 = 18
-    # Meal-level fallback for meal_without_items: 35
     assert summary["nutrition_totals"]["protein_g_estimate"] == 53.0

@@ -1,12 +1,5 @@
 """
-Version 1.1 safe-write foundation tests.
-
-Place this file in your project tests/ folder, for example:
-
-tests/test_v1_1_write_foundation.py
-
-These tests patch the CSV paths used by grocery_service.py so they write only
-to pytest's tmp_path and do not touch your real project data.
+Version 1.1 safe-write foundation tests, updated for the Version 1.3 schema.
 """
 
 import pytest
@@ -20,6 +13,11 @@ def temp_grocery_csv_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(gs, "INVENTORY_PATH", tmp_path / "user_inventory.csv")
     monkeypatch.setattr(gs, "INTAKE_HISTORY_PATH", tmp_path / "user_intake_history.csv")
     monkeypatch.setattr(gs, "INTAKE_ITEMS_PATH", tmp_path / "user_intake_items.csv")
+    monkeypatch.setattr(
+        gs,
+        "INVENTORY_CONSUMPTION_PATH",
+        tmp_path / "user_inventory_consumption.csv",
+    )
     monkeypatch.setattr(gs, "FOOD_WASTE_PATH", tmp_path / "user_food_waste.csv")
     return tmp_path
 
@@ -33,13 +31,14 @@ def test_add_inventory_item_creates_valid_row(temp_grocery_csv_paths):
         quantity=1,
         unit="bag",
         servings_remaining=10,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-12-01",
     )
 
     assert result["success"] is True
     assert result["item"]["stock_id"] == "inv_001"
     assert result["item"]["food_item"] == "Rolled oats"
+    assert result["item"]["stock_status"] == "in_stock"
     assert result["item"]["initial_quantity"] == 1.0
     assert result["item"]["initial_servings"] == 10.0
 
@@ -54,9 +53,14 @@ def test_add_inventory_item_rejects_negative_quantity(temp_grocery_csv_paths):
         gs.add_inventory_item(food_item="Milk", quantity=-1)
 
 
-def test_add_inventory_item_rejects_removed_status(temp_grocery_csv_paths):
-    with pytest.raises(ValueError, match="stock_status='removed'"):
-        gs.add_inventory_item(food_item="Milk", quantity=1, servings_remaining=1, stock_status="removed")
+def test_add_inventory_item_rejects_invalid_stock_status(temp_grocery_csv_paths):
+    with pytest.raises(ValueError, match="stock_status must be one of"):
+        gs.add_inventory_item(
+            food_item="Milk",
+            quantity=1,
+            servings_remaining=1,
+            stock_status="removed",
+        )
 
 
 def test_update_inventory_item_updates_only_selected_fields(temp_grocery_csv_paths):
@@ -90,13 +94,15 @@ def test_update_inventory_item_rejects_unknown_stock_id(temp_grocery_csv_paths):
         gs.update_inventory_item(stock_id="inv_999", quantity=1)
 
 
-def test_update_inventory_item_infers_out_when_quantity_and_servings_are_zero(temp_grocery_csv_paths):
+def test_update_inventory_item_infers_out_when_quantity_and_servings_are_zero(
+    temp_grocery_csv_paths,
+):
     created = gs.add_inventory_item(
         food_item="Milk",
         quantity=1,
         unit="L",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     stock_id = created["item"]["stock_id"]
@@ -105,7 +111,7 @@ def test_update_inventory_item_infers_out_when_quantity_and_servings_are_zero(te
         stock_id=stock_id,
         quantity=0,
         servings_remaining=0,
-        stock_status="ok",
+        stock_status="in_stock",
     )
 
     assert updated["item"]["stock_status"] == "out"
@@ -196,6 +202,8 @@ def test_add_intake_item_creates_child_component(temp_grocery_csv_paths):
     item = gs.add_intake_item(
         intake_id=meal["item"]["intake_id"],
         food_item="Bread",
+        quantity_used=2,
+        unit="slice",
         servings_used=2,
         calories_estimate=180,
     )
@@ -203,6 +211,8 @@ def test_add_intake_item_creates_child_component(temp_grocery_csv_paths):
     assert item["success"] is True
     assert item["item"]["intake_item_id"] == "intake_item_001"
     assert item["item"]["intake_id"] == meal["item"]["intake_id"]
+    assert item["item"]["quantity_used"] == 2
+    assert item["item"]["unit"] == "slice"
     assert item["item"]["stock_id"] == ""
 
 

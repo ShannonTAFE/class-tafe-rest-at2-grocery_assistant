@@ -101,12 +101,12 @@ def register_inventory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    'Current inventory status. Use "ok", "low", "very low", '
-                    '"empty", "out", or "expired". Do not use "removed" here; '
-                    'use remove_inventory_item when an item should leave active inventory.'
+                    'Current inventory status. Use one of: "in_stock", "low", '
+                    '"very_low", "out", or "expired". Use remove_inventory_item '
+                    "when an item should leave active inventory."
                 )
             ),
-        ] = "ok",
+        ] = "in_stock",
         expiry_date: Annotated[
             str,
             Field(description='Expiry or use-by date in YYYY-MM-DD format. Leave blank if unknown.'),
@@ -125,8 +125,12 @@ def register_inventory_tools(mcp: FastMCP) -> None:
         This tool creates a new inventory row and the service layer generates
         the stock_id internally.
 
-        Do not use this tool to update an existing item, reduce servings, mark
-        an item as consumed, or correct an existing inventory row.
+        Do not use this tool to update an existing item, reduce quantity or
+        servings, mark an item as consumed, or correct an existing inventory row.
+
+        Use consume_inventory_item when stock should be reduced without intake
+        logging. Use add_intake_item_from_inventory when stock should be reduced
+        and linked to an existing intake entry.
         """
         return add_inventory_item_service(
             food_item=food_item,

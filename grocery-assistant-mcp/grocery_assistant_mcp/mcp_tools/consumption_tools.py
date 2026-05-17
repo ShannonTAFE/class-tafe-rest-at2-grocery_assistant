@@ -11,13 +11,14 @@ from grocery_assistant_mcp.core.grocery_service import (
 
 def register_consumption_tools(mcp: FastMCP) -> None:
     """
-    Register controlled inventory consumption tools.
+    Register controlled inventory consumption MCP tools.
 
     These tools sit between inventory and intake workflows.
 
     The MCP layer stays thin:
     - validation happens in grocery_service.py
     - inventory deduction logic happens in grocery_service.py
+    - inventory consumption event logging happens in grocery_service.py
     - CSV backup/write logic happens in grocery_service.py
     - this file only exposes controlled service functions as MCP tools
     """
@@ -37,9 +38,10 @@ def register_consumption_tools(mcp: FastMCP) -> None:
             float,
             Field(
                 description=(
-                    "Optional physical quantity consumed from inventory. "
-                    "Use with the inventory item's unit. "
-                    'Example: 100 when using 100 g. Use 0 if tracking servings only.'
+                    "Optional physical quantity consumed from inventory. Use with the "
+                    "inventory item's unit. This value is deducted from inventory and "
+                    "recorded in the inventory consumption event. "
+                    'Example: 500 when using 500 ml. Use 0 if tracking servings only.'
                 )
             ),
         ] = 0,
@@ -52,15 +54,23 @@ def register_consumption_tools(mcp: FastMCP) -> None:
                 )
             ),
         ] = 0,
-        usage_reason: Annotated[
+        consumption_type: Annotated[
             str,
             Field(
                 description=(
-                    "Optional reason for consumption. "
-                    'Examples: "consumed", "used in cooking", "finished item".'
+                    "Type of inventory consumption event. Use one of: consumed, "
+                    "used_in_cooking, finished, adjustment, other."
                 )
             ),
         ] = "consumed",
+        tracking_confidence: Annotated[
+            str,
+            Field(
+                description=(
+                    "Confidence in the inventory usage amount. Use one of: low, medium, high."
+                )
+            ),
+        ] = "medium",
         notes: Annotated[
             str,
             Field(
@@ -74,26 +84,29 @@ def register_consumption_tools(mcp: FastMCP) -> None:
         """
         Consume part or all of a tracked inventory item.
 
-        Use this when the user says they used, ate, finished, or reduced a
-        grocery inventory item but does not want to create an intake item.
+        Use this when the user says they used, ate, drank, finished, cooked
+        with, or reduced a grocery inventory item, but does not want to create
+        an intake item.
 
-        This tool updates inventory only.
+        This tool:
+        - updates user_inventory.csv
+        - records a usage event in user_inventory_consumption.csv
 
-        It does not:
-        - create a meal entry
-        - create an intake item
+        This tool does not:
+        - create a parent meal entry
+        - create a child intake item
         - remove the inventory row
         - create a food waste record
 
-        If the item reaches zero quantity and zero servings, it remains in
-        inventory with stock_status set to "out" so it can still support
-        restock reminders and grocery personalization.
+        Use add_intake_item_from_inventory instead when the consumed inventory
+        item should also be recorded as part of an existing meal/intake entry.
         """
         return consume_inventory_item_service(
             stock_id=stock_id,
             quantity_used=quantity_used,
             servings_used=servings_used,
-            usage_reason=usage_reason,
+            consumption_type=consumption_type,
+            tracking_confidence=tracking_confidence,
             notes=notes,
         )
 
@@ -130,9 +143,10 @@ def register_consumption_tools(mcp: FastMCP) -> None:
             float,
             Field(
                 description=(
-                    "Optional physical quantity consumed from inventory. "
-                    "Use with the inventory item's unit. "
-                    'Example: 100 when using 100 g. Use 0 if tracking servings only.'
+                    "Optional physical quantity consumed from inventory. Use with the "
+                    "inventory item's unit. This value is deducted from inventory and "
+                    "recorded on the created intake item and consumption event. "
+                    'Example: 500 when using 500 ml. Use 0 if tracking servings only.'
                 )
             ),
         ] = 0,
@@ -145,6 +159,23 @@ def register_consumption_tools(mcp: FastMCP) -> None:
                 )
             ),
         ] = 0,
+        consumption_type: Annotated[
+            str,
+            Field(
+                description=(
+                    "Type of inventory consumption event. Use one of: consumed, "
+                    "used_in_cooking, finished, adjustment, other."
+                )
+            ),
+        ] = "consumed",
+        tracking_confidence: Annotated[
+            str,
+            Field(
+                description=(
+                    "Confidence in the inventory usage amount. Use one of: low, medium, high."
+                )
+            ),
+        ] = "medium",
         calories_estimate: Annotated[
             float,
             Field(
@@ -233,16 +264,19 @@ def register_consumption_tools(mcp: FastMCP) -> None:
         Use this when the user ate or used a known inventory item as part of
         an existing meal or eating event.
 
-        This tool creates a child intake item and updates inventory together.
+        This tool:
+        - creates one child intake item in user_intake_items.csv
+        - updates user_inventory.csv
+        - records a linked usage event in user_inventory_consumption.csv
 
-        It copies food_item, brand, and category from the inventory row, so the
-        caller should not manually provide those fields.
-
-        It does not:
+        This tool does not:
         - create the parent meal entry
+        - modify parent meal-level nutrition totals
         - remove the inventory row
         - create a food waste record
-        - modify the parent intake entry totals automatically
+
+        It copies food_item, brand, category, and unit from the inventory row,
+        so the caller should not manually provide those identity fields.
 
         Use add_intake_entry first if the parent meal does not exist yet.
         Use add_intake_item for non-inventory food, takeaway, restaurant food,
@@ -254,6 +288,8 @@ def register_consumption_tools(mcp: FastMCP) -> None:
             amount_eaten=amount_eaten,
             quantity_used=quantity_used,
             servings_used=servings_used,
+            consumption_type=consumption_type,
+            tracking_confidence=tracking_confidence,
             calories_estimate=calories_estimate,
             protein_g_estimate=protein_g_estimate,
             carbs_g_estimate=carbs_g_estimate,

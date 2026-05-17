@@ -74,7 +74,7 @@ def test_add_intake_item_creates_component_row(tmp_path, monkeypatch):
         quantity=500,
         unit="g",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-06-15",
         notes="Test inventory item",
     )
@@ -98,6 +98,8 @@ def test_add_intake_item_creates_component_row(tmp_path, monkeypatch):
         source="inventory",
         stock_id=stock_id,
         amount_eaten="1 serve",
+        quantity_used=125,
+        unit="g",
         servings_used=1,
         protein_g_estimate=28,
         nutrition_confidence="medium",
@@ -107,6 +109,8 @@ def test_add_intake_item_creates_component_row(tmp_path, monkeypatch):
     assert item_result["item"]["food_item"] == "Beef mince"
     assert item_result["item"]["source"] == "inventory"
     assert item_result["item"]["stock_id"] == stock_id
+    assert item_result["item"]["quantity_used"] == 125
+    assert item_result["item"]["unit"] == "g"
     assert item_result["item"]["servings_used"] == 1
     assert item_result["item"]["protein_g_estimate"] == 28
     assert item_result["item"]["nutrition_confidence"] == "medium"

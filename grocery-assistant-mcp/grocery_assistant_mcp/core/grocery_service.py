@@ -11,6 +11,7 @@ from grocery_assistant_mcp.utils.paths import (
     INVENTORY_PATH,
     INTAKE_HISTORY_PATH,
     INTAKE_ITEMS_PATH,
+    INVENTORY_CONSUMPTION_PATH,
     FOOD_WASTE_PATH,
 )
 
@@ -138,6 +139,8 @@ INTAKE_ITEMS_COLUMNS = [
     "source",
     "stock_id",
     "amount_eaten",
+    "quantity_used",
+    "unit",
     "servings_used",
     "calories_estimate",
     "protein_g_estimate",
@@ -151,19 +154,40 @@ INTAKE_ITEMS_COLUMNS = [
 ]
 
 
+INVENTORY_CONSUMPTION_COLUMNS = [
+    "consumption_id",
+    "stock_id",
+    "intake_id",
+    "intake_item_id",
+    "food_item",
+    "brand",
+    "category",
+    "location",
+    "quantity_used",
+    "unit",
+    "servings_used",
+    "quantity_before",
+    "servings_before",
+    "quantity_after",
+    "servings_after",
+    "stock_status_before",
+    "stock_status_after",
+    "consumed_at",
+    "consumption_type",
+    "tracking_confidence",
+    "notes",
+]
+
 # ---------------------------------------------------------------------
 # Valid values
 # ---------------------------------------------------------------------
 
 VALID_STOCK_STATUSES = {
-    "ok",
+    "in_stock",
     "low",
-    "very low",
-    "empty",
+    "very_low",
     "out",
-    "used",
     "expired",
-    "removed",
 }
 
 VALID_REMOVAL_TYPES = {
@@ -208,6 +232,14 @@ VALID_MEAL_TYPES = {
     "meal",
     "other",
     "unknown",
+}
+
+VALID_CONSUMPTION_TYPES = {
+    "consumed",
+    "used_in_cooking",
+    "finished",
+    "adjustment",
+    "other",
 }
 
 VALID_CONFIDENCE_LEVELS = {
@@ -293,19 +325,26 @@ def infer_stock_status(
     """
     Infer a safer stock_status from quantity and servings.
 
+    Canonical Version 1.3 statuses:
+    - in_stock: usable stock is available
+    - low: usable stock is running low
+    - very_low: usable stock is nearly depleted
+    - out: no usable stock remains, but the row may remain as a restock signal
+    - expired: food is expired but still physically present
+
     This is intentionally conservative:
     - quantity=0 and servings=0 changes available-like statuses to "out"
-    - positive quantity or servings changes "empty"/"out" to "low"
-    - explicit expired/used/removed statuses are not silently overwritten
+    - positive quantity or servings changes "out" to "low"
+    - explicit "expired" is not silently overwritten
     """
-    stock_status = clean_lower_text(stock_status, "stock_status") or "ok"
+    stock_status = clean_lower_text(stock_status, "stock_status") or "in_stock"
 
     if quantity == 0 and servings_remaining == 0:
-        if stock_status in {"ok", "low", "very low"}:
+        if stock_status in {"in_stock", "low", "very_low"}:
             return "out"
 
     if quantity > 0 or servings_remaining > 0:
-        if stock_status in {"empty", "out"}:
+        if stock_status == "out":
             return "low"
 
     return stock_status
@@ -325,15 +364,10 @@ def validate_inventory_stock_consistency(
     validate_non_negative_number(quantity, "quantity")
     validate_non_negative_number(servings_remaining, "servings_remaining")
 
-    if stock_status == "removed":
+    if stock_status == "in_stock" and quantity == 0 and servings_remaining == 0:
         raise ValueError(
-            "stock_status='removed' should not be used for active inventory rows. "
-            "Use remove_inventory_item() instead."
-        )
-
-    if stock_status == "ok" and quantity == 0 and servings_remaining == 0:
-        raise ValueError(
-            "Items with quantity=0 and servings_remaining=0 should not have stock_status='ok'."
+            "Items with quantity=0 and servings_remaining=0 should not have "
+            "stock_status='in_stock'."
         )
 
     if stock_status == "expired" and quantity == 0 and servings_remaining == 0:
@@ -408,6 +442,16 @@ def read_intake_items() -> pd.DataFrame:
     return read_csv_file(INTAKE_ITEMS_PATH)
 
 
+def read_inventory_consumption() -> pd.DataFrame:
+    """
+    Read the inventory consumption event log.
+
+    This file records inventory usage events, including inventory-only
+    consumption and intake-linked consumption.
+    """
+    return read_csv_file(INVENTORY_CONSUMPTION_PATH)
+
+
 def df_to_records(df: pd.DataFrame) -> list[dict]:
     """
     Convert a pandas DataFrame into a list of dictionaries.
@@ -471,7 +515,7 @@ def list_inventory_items(
         df = df[_safe_text_series(df, "category") == category_clean]
 
     if low_stock_only and "stock_status" in df.columns:
-        low_statuses = ["low", "very low", "empty", "out"]
+        low_statuses = ["low", "very_low", "out"]
         df = df[_safe_text_series(df, "stock_status").isin(low_statuses)]
 
     return df_to_records(df)
@@ -532,6 +576,50 @@ def list_food_waste_items(
         df = df[_safe_text_series(df, "category") == category]
 
     return df_to_records(df)
+
+
+def list_inventory_consumption(
+    stock_id: str = "",
+    intake_id: str = "",
+    intake_item_id: str = "",
+    consumption_type: str = "",
+) -> list[dict]:
+    """
+    Return inventory consumption event records.
+
+    Optional filters:
+    - stock_id
+    - intake_id
+    - intake_item_id
+    - consumption_type
+    """
+    df = read_csv_for_write(
+        INVENTORY_CONSUMPTION_PATH,
+        INVENTORY_CONSUMPTION_COLUMNS,
+    )
+
+    if df.empty:
+        return []
+
+    stock_id = clean_text(stock_id, "stock_id")
+    intake_id = clean_text(intake_id, "intake_id")
+    intake_item_id = clean_text(intake_item_id, "intake_item_id")
+    consumption_type = clean_lower_text(consumption_type, "consumption_type")
+
+    if stock_id:
+        df = df[_safe_text_series(df, "stock_id") == stock_id.lower()]
+
+    if intake_id:
+        df = df[_safe_text_series(df, "intake_id") == intake_id.lower()]
+
+    if intake_item_id:
+        df = df[_safe_text_series(df, "intake_item_id") == intake_item_id.lower()]
+
+    if consumption_type:
+        df = df[_safe_text_series(df, "consumption_type") == consumption_type]
+
+    return df_to_records(df)
+
 
 def find_inventory_item(search_term: str) -> list[dict]:
     """
@@ -895,6 +983,9 @@ def search_intake(
             "source",
             "stock_id",
             "amount_eaten",
+            "quantity_used",
+            "unit",
+            "servings_used",
             "nutrition_confidence",
             "notes",
         ]   
@@ -1257,7 +1348,48 @@ def _exact_text_mask(df: pd.DataFrame, column: str, value: str) -> pd.Series:
         return pd.Series([False] * len(df), index=df.index)
 
     return df[column].fillna("").astype(str).str.strip().str.lower() == value.lower()
-    
+
+
+def save_related_csv_updates(
+    operations: list[tuple[str, Path, pd.DataFrame, pd.DataFrame]],
+) -> dict[str, str | None]:
+    """
+    Save multiple related CSV updates with best-effort rollback.
+
+    Each operation is:
+    - logical name
+    - CSV path
+    - original DataFrame
+    - updated DataFrame
+
+    This does not replace a real database transaction, but it reduces the risk
+    of leaving related CSV files out of sync during multi-file workflows.
+    """
+    backup_paths: dict[str, str | None] = {}
+
+    try:
+        for name, path, _original_df, _updated_df in operations:
+            backup_path = backup_csv(path)
+            backup_paths[name] = str(backup_path) if backup_path else None
+
+        for _name, path, _original_df, updated_df in operations:
+            save_csv(updated_df, path)
+
+    except Exception as exc:
+        try:
+            for _name, path, original_df, _updated_df in operations:
+                save_csv(original_df, path)
+        except Exception as rollback_exc:
+            raise RuntimeError(
+                "Failed to save related CSV updates, and rollback also failed."
+            ) from rollback_exc
+
+        raise RuntimeError(
+            "Failed to save related CSV updates. Original CSV state was restored."
+        ) from exc
+
+    return backup_paths
+
 # ---------------------------------------------------------------------
 # Intake write service functions
 # ---------------------------------------------------------------------
@@ -1673,6 +1805,8 @@ def add_intake_item(
     source: str = "",
     stock_id: str = "",
     amount_eaten: str = "",
+    quantity_used: float = 0,
+    unit: str = "",
     servings_used: float = 0,
     calories_estimate: float = 0,
     protein_g_estimate: float = 0,
@@ -1698,6 +1832,7 @@ def add_intake_item(
     source = clean_text(source, "source")
     stock_id = clean_text(stock_id, "stock_id")
     amount_eaten = clean_text(amount_eaten, "amount_eaten")
+    unit = clean_text(unit, "unit")
     notes = clean_text(notes, "notes")
 
     if stock_id:
@@ -1711,6 +1846,7 @@ def add_intake_item(
     )
 
     numeric_values = validate_non_negative_fields({
+        "quantity_used": quantity_used,
         "servings_used": servings_used,
         "calories_estimate": calories_estimate,
         "protein_g_estimate": protein_g_estimate,
@@ -1735,6 +1871,8 @@ def add_intake_item(
         "source": source,
         "stock_id": stock_id,
         "amount_eaten": amount_eaten,
+        "quantity_used": numeric_values["quantity_used"],
+        "unit": unit,
         "servings_used": numeric_values["servings_used"],
         "calories_estimate": numeric_values["calories_estimate"],
         "protein_g_estimate": numeric_values["protein_g_estimate"],
@@ -1768,6 +1906,8 @@ def update_intake_item(
     source: str | None = None,
     stock_id: str | None = None,
     amount_eaten: str | None = None,
+    quantity_used: float | None = None,
+    unit: str | None = None,
     servings_used: float | None = None,
     calories_estimate: float | None = None,
     protein_g_estimate: float | None = None,
@@ -1796,6 +1936,8 @@ def update_intake_item(
         "source": source,
         "stock_id": stock_id,
         "amount_eaten": amount_eaten,
+        "quantity_used": quantity_used,
+        "unit": unit,
         "servings_used": servings_used,
         "calories_estimate": calories_estimate,
         "protein_g_estimate": protein_g_estimate,
@@ -1821,6 +1963,7 @@ def update_intake_item(
         "source",
         "stock_id",
         "amount_eaten",
+        "unit",
         "notes",
     ]
 
@@ -1848,6 +1991,7 @@ def update_intake_item(
 
     numeric_fields = [
         "servings_used",
+        "quantity_used",
         "calories_estimate",
         "protein_g_estimate",
         "carbs_g_estimate",
@@ -2011,9 +2155,6 @@ def find_possible_inventory_duplicates(
         expiry_series = df["expiry_date"].fillna("").astype(str).str.strip()
         mask = mask & (expiry_series == expiry_date)
 
-    if "stock_status" in df.columns:
-        mask = mask & (~_safe_text_series(df, "stock_status").isin({"removed"}))
-
     return df_to_records(df[mask])
 
 def intake_item_id_exists(intake_item_id: str) -> bool:
@@ -2131,15 +2272,10 @@ def calculate_inventory_after_consumption(
     )
 
     current_status = validate_choice(
-        inventory_item.get("stock_status", "ok") or "ok",
+        inventory_item.get("stock_status", "in_stock") or "in_stock",
         VALID_STOCK_STATUSES,
         "stock_status",
     )
-
-    if current_status == "removed":
-        raise ValueError(
-            "Cannot consume an inventory item with stock_status='removed'."
-        )
 
     final_quantity = current_quantity - consumption_values["quantity_used"]
     final_servings = current_servings - consumption_values["servings_used"]
@@ -2242,12 +2378,82 @@ def apply_inventory_consumption_to_df(
         consumption_values,
     )
 
+def build_inventory_consumption_record(
+    consumption_df: pd.DataFrame,
+    inventory_before: dict,
+    inventory_after: dict,
+    quantity_used: float,
+    servings_used: float,
+    intake_id: str = "",
+    intake_item_id: str = "",
+    consumption_type: str = "consumed",
+    tracking_confidence: str = "medium",
+    notes: str = "",
+) -> dict:
+    """
+    Build an inventory consumption event record.
+
+    This function performs no file writes.
+    """
+    intake_id = clean_text(intake_id, "intake_id")
+    intake_item_id = clean_text(intake_item_id, "intake_item_id")
+    notes = clean_text(notes, "notes")
+
+    consumption_type = validate_choice_or_blank(
+        consumption_type,
+        VALID_CONSUMPTION_TYPES,
+        "consumption_type",
+        default="consumed",
+    )
+
+    tracking_confidence = validate_choice_or_blank(
+        tracking_confidence,
+        VALID_TRACKING_CONFIDENCE,
+        "tracking_confidence",
+        default="medium",
+    )
+
+    quantity_value = validate_non_negative_number(quantity_used, "quantity_used")
+    servings_value = validate_non_negative_number(servings_used, "servings_used")
+
+    existing_ids = consumption_df["consumption_id"].dropna().astype(str).tolist()
+    consumption_id = generate_next_id(
+        existing_ids,
+        prefix="consumption",
+        width=3,
+    )
+
+    return {
+        "consumption_id": consumption_id,
+        "stock_id": clean_text(inventory_before.get("stock_id", ""), "stock_id", required=True),
+        "intake_id": intake_id,
+        "intake_item_id": intake_item_id,
+        "food_item": clean_text(inventory_before.get("food_item", ""), "food_item"),
+        "brand": clean_text(inventory_before.get("brand", ""), "brand"),
+        "category": clean_text(inventory_before.get("category", ""), "category"),
+        "location": clean_text(inventory_before.get("location", ""), "location"),
+        "quantity_used": quantity_value,
+        "unit": clean_text(inventory_before.get("unit", ""), "unit"),
+        "servings_used": servings_value,
+        "quantity_before": to_float(inventory_before.get("quantity"), 0),
+        "servings_before": to_float(inventory_before.get("servings_remaining"), 0),
+        "quantity_after": to_float(inventory_after.get("quantity"), 0),
+        "servings_after": to_float(inventory_after.get("servings_remaining"), 0),
+        "stock_status_before": clean_text(inventory_before.get("stock_status", ""), "stock_status"),
+        "stock_status_after": clean_text(inventory_after.get("stock_status", ""), "stock_status"),
+        "consumed_at": today_iso(),
+        "consumption_type": consumption_type,
+        "tracking_confidence": tracking_confidence,
+        "notes": notes,
+    }
+
 
 def build_intake_item_from_inventory_row(
     intake_items_df: pd.DataFrame,
     intake_id: str,
     inventory_item: dict,
     amount_eaten: str = "",
+    quantity_used: float = 0,
     servings_used: float = 0,
     calories_estimate: float = 0,
     protein_g_estimate: float = 0,
@@ -2282,6 +2488,7 @@ def build_intake_item_from_inventory_row(
 
     brand = clean_text(inventory_item.get("brand", ""), "brand")
     category = clean_text(inventory_item.get("category", ""), "category")
+    unit = clean_text(inventory_item.get("unit", ""), "unit")
 
     nutrition_confidence = validate_choice_or_blank(
         nutrition_confidence,
@@ -2291,6 +2498,7 @@ def build_intake_item_from_inventory_row(
     )
 
     numeric_values = validate_non_negative_fields({
+        "quantity_used": quantity_used,
         "servings_used": servings_used,
         "calories_estimate": calories_estimate,
         "protein_g_estimate": protein_g_estimate,
@@ -2317,6 +2525,8 @@ def build_intake_item_from_inventory_row(
         "source": "inventory",
         "stock_id": stock_id,
         "amount_eaten": amount_eaten,
+        "quantity_used": numeric_values["quantity_used"],
+        "unit": unit,
         "servings_used": numeric_values["servings_used"],
         "calories_estimate": numeric_values["calories_estimate"],
         "protein_g_estimate": numeric_values["protein_g_estimate"],
@@ -2334,22 +2544,44 @@ def consume_inventory_item(
     stock_id: str,
     quantity_used: float = 0,
     servings_used: float = 0,
-    usage_reason: str = "consumed",
+    consumption_type: str = "consumed",
+    tracking_confidence: str = "medium",
     notes: str = "",
 ) -> dict:
     """
     Consume part or all of a tracked inventory item.
 
-    This updates user_inventory.csv only. It does not create intake records,
-    remove inventory rows, or create food waste records.
+    This is the inventory-only Version 1.3 consumption workflow.
+
+    It writes to:
+    - user_inventory.csv
+    - user_inventory_consumption.csv
+
+    It does not:
+    - create a parent intake entry
+    - create a child intake item
+    - remove the inventory row
+    - create a food waste record
+
+    Use this when inventory changed because the user consumed, finished,
+    cooked with, or otherwise used a tracked item, but the usage should not
+    be attached to a meal/intake record.
+
+    If the item reaches zero quantity and zero servings, it remains in
+    inventory with stock_status="out" so it can still support restock
+    reminders and grocery personalization.
     """
     stock_id = clean_text(stock_id, "stock_id", required=True)
-    usage_reason = clean_text(usage_reason, "usage_reason") or "consumed"
     notes = clean_text(notes, "notes")
 
     inventory_df = read_csv_for_write(
         INVENTORY_PATH,
         INVENTORY_COLUMNS,
+    )
+
+    consumption_df = read_csv_for_write(
+        INVENTORY_CONSUMPTION_PATH,
+        INVENTORY_CONSUMPTION_COLUMNS,
     )
 
     (
@@ -2364,20 +2596,48 @@ def consume_inventory_item(
         servings_used=servings_used,
     )
 
-    backup_path = backup_csv(INVENTORY_PATH)
-    save_csv(updated_inventory_df, INVENTORY_PATH)
+    consumption_record = build_inventory_consumption_record(
+        consumption_df=consumption_df,
+        inventory_before=inventory_before,
+        inventory_after=inventory_after,
+        quantity_used=consumption_values["quantity_used"],
+        servings_used=consumption_values["servings_used"],
+        consumption_type=consumption_type,
+        tracking_confidence=tracking_confidence,
+        notes=notes,
+    )
+
+    updated_consumption_df = pd.concat(
+        [consumption_df, pd.DataFrame([consumption_record])],
+        ignore_index=True,
+    )
+
+    backup_paths = save_related_csv_updates([
+        (
+            "inventory",
+            INVENTORY_PATH,
+            inventory_df,
+            updated_inventory_df,
+        ),
+        (
+            "inventory_consumption",
+            INVENTORY_CONSUMPTION_PATH,
+            consumption_df,
+            updated_consumption_df,
+        ),
+    ])
 
     return {
         "success": True,
-        "message": "Inventory item consumed.",
+        "message": "Inventory item consumed and consumption event recorded.",
         "stock_id": stock_id,
         "quantity_used": consumption_values["quantity_used"],
         "servings_used": consumption_values["servings_used"],
-        "usage_reason": usage_reason,
-        "notes": notes,
+        "consumption_record": consumption_record,
         "inventory_before": inventory_before,
         "inventory_after": inventory_after,
-        "backup_created": str(backup_path) if backup_path else None,
+        "inventory_backup_created": backup_paths.get("inventory"),
+        "inventory_consumption_backup_created": backup_paths.get("inventory_consumption"),
     }
 
 def add_intake_item_from_inventory(
@@ -2394,23 +2654,36 @@ def add_intake_item_from_inventory(
     sugar_g_estimate: float = 0,
     sodium_mg_estimate: float = 0,
     nutrition_confidence: str = "medium",
+    consumption_type: str = "consumed",
+    tracking_confidence: str = "medium",
     notes: str = "",
 ) -> dict:
     """
     Add a child intake item from a tracked inventory item and consume inventory.
 
-    This is the controlled Version 1.3 bridge between intake logging and
-    inventory mutation.
+    This is the linked Version 1.3 intake/inventory consumption workflow.
 
     It writes to:
     - user_intake_items.csv
     - user_inventory.csv
+    - user_inventory_consumption.csv
 
     It does not:
-    - create a parent intake entry
-    - remove inventory rows
-    - create food waste records
-    - modify user_intake_history.csv
+    - create the parent intake entry
+    - modify parent meal-level nutrition totals
+    - remove the inventory row
+    - create a food waste record
+
+    Use this when the user ate or used a known inventory item as part of an
+    existing meal or eating event.
+
+    The created intake item copies food_item, brand, category, stock_id, and
+    unit from the inventory row. The inventory consumption event records the
+    before/after inventory state and links back to the created intake item.
+
+    Use add_intake_entry first if the parent meal does not exist yet.
+    Use add_intake_item for non-inventory food, takeaway, restaurant food,
+    or historical estimates that should not deduct inventory.
     """
     intake_id = clean_text(intake_id, "intake_id", required=True)
     stock_id = clean_text(stock_id, "stock_id", required=True)
@@ -2432,7 +2705,11 @@ def add_intake_item_from_inventory(
         INTAKE_ITEMS_COLUMNS,
     )
 
-    # Validate parent intake entry using the already-read DataFrame.
+    consumption_df = read_csv_for_write(
+        INVENTORY_CONSUMPTION_PATH,
+        INVENTORY_CONSUMPTION_COLUMNS,
+    )
+
     intake_id = require_existing_id(
         df=history_df,
         id_column="intake_id",
@@ -2440,7 +2717,6 @@ def add_intake_item_from_inventory(
         entity_name="intake entry",
     )
 
-    # Validate and calculate inventory consumption before writing anything.
     (
         updated_inventory_df,
         inventory_before,
@@ -2453,12 +2729,12 @@ def add_intake_item_from_inventory(
         servings_used=servings_used,
     )
 
-    # Build the child intake item before writing anything.
     new_intake_item = build_intake_item_from_inventory_row(
         intake_items_df=intake_items_df,
         intake_id=intake_id,
         inventory_item=inventory_before,
         amount_eaten=amount_eaten,
+        quantity_used=consumption_values["quantity_used"],
         servings_used=consumption_values["servings_used"],
         calories_estimate=calories_estimate,
         protein_g_estimate=protein_g_estimate,
@@ -2471,45 +2747,66 @@ def add_intake_item_from_inventory(
         notes=notes,
     )
 
+    consumption_record = build_inventory_consumption_record(
+        consumption_df=consumption_df,
+        inventory_before=inventory_before,
+        inventory_after=inventory_after,
+        quantity_used=consumption_values["quantity_used"],
+        servings_used=consumption_values["servings_used"],
+        intake_id=intake_id,
+        intake_item_id=new_intake_item["intake_item_id"],
+        consumption_type=consumption_type,
+        tracking_confidence=tracking_confidence,
+        notes=notes,
+    )
+
     updated_intake_items_df = pd.concat(
         [intake_items_df, pd.DataFrame([new_intake_item])],
         ignore_index=True,
     )
 
-    # Backups happen only after all validation and row construction succeeds.
-    inventory_backup_path = backup_csv(INVENTORY_PATH)
-    intake_items_backup_path = backup_csv(INTAKE_ITEMS_PATH)
+    updated_consumption_df = pd.concat(
+        [consumption_df, pd.DataFrame([consumption_record])],
+        ignore_index=True,
+    )
 
-    try:
-        save_csv(updated_inventory_df, INVENTORY_PATH)
-        save_csv(updated_intake_items_df, INTAKE_ITEMS_PATH)
-    except Exception as exc:
-        # Best-effort rollback for this two-file workflow.
-        # This does not replace a real database transaction, but it reduces
-        # the risk of leaving inventory and intake items out of sync.
-        try:
-            save_csv(inventory_df, INVENTORY_PATH)
-            save_csv(intake_items_df, INTAKE_ITEMS_PATH)
-        except Exception as rollback_exc:
-            raise RuntimeError(
-                "Failed to save linked intake/inventory update, and rollback also failed."
-            ) from rollback_exc
-
-        raise RuntimeError(
-            "Failed to save linked intake/inventory update. Original CSV state was restored."
-        ) from exc
+    backup_paths = save_related_csv_updates([
+        (
+            "inventory",
+            INVENTORY_PATH,
+            inventory_df,
+            updated_inventory_df,
+        ),
+        (
+            "intake_items",
+            INTAKE_ITEMS_PATH,
+            intake_items_df,
+            updated_intake_items_df,
+        ),
+        (
+            "inventory_consumption",
+            INVENTORY_CONSUMPTION_PATH,
+            consumption_df,
+            updated_consumption_df,
+        ),
+    ])
 
     return {
         "success": True,
-        "message": "Intake item added from inventory and inventory was consumed.",
+        "message": (
+            "Intake item added from inventory, inventory was consumed, "
+            "and consumption event was recorded."
+        ),
         "intake_item": new_intake_item,
+        "consumption_record": consumption_record,
         "stock_id": stock_id,
         "quantity_used": consumption_values["quantity_used"],
         "servings_used": consumption_values["servings_used"],
         "inventory_before": inventory_before,
         "inventory_after": inventory_after,
-        "inventory_backup_created": str(inventory_backup_path) if inventory_backup_path else None,
-        "intake_items_backup_created": str(intake_items_backup_path) if intake_items_backup_path else None,
+        "inventory_backup_created": backup_paths.get("inventory"),
+        "intake_items_backup_created": backup_paths.get("intake_items"),
+        "inventory_consumption_backup_created": backup_paths.get("inventory_consumption"),
     }
 
 
@@ -2525,7 +2822,7 @@ def add_inventory_item(
     quantity: float = 0,
     unit: str = "",
     servings_remaining: float = 0,
-    stock_status: str = "ok",
+    stock_status: str = "in_stock",
     expiry_date: str = "",
     notes: str = "",
 ) -> dict:
@@ -2541,7 +2838,7 @@ def add_inventory_item(
     category = clean_text(category, "category")
     location = clean_text(location, "location")
     unit = clean_text(unit, "unit")
-    stock_status = clean_text(stock_status, "stock_status") or "ok"
+    stock_status = clean_text(stock_status, "stock_status") or "in_stock"
     expiry_date = clean_text(expiry_date, "expiry_date")
     notes = clean_text(notes, "notes")
 

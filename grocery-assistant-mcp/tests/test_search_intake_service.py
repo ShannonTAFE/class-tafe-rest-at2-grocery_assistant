@@ -6,13 +6,7 @@ from grocery_assistant_mcp.core import grocery_service as service
 
 @pytest.fixture()
 def search_intake_csvs(tmp_path, monkeypatch):
-    """
-    Create isolated temporary CSV files for search_intake tests.
-
-    These tests validate Version 1.2's read-only record discovery workflow:
-    find the correct parent intake entry or child intake item before editing
-    or removing records.
-    """
+    """Create isolated temporary CSV files for search_intake tests."""
     intake_history_path = tmp_path / "user_intake_history.csv"
     intake_items_path = tmp_path / "user_intake_items.csv"
 
@@ -128,6 +122,8 @@ def search_intake_csvs(tmp_path, monkeypatch):
             "source": "inventory",
             "stock_id": "inv_001",
             "amount_eaten": "150g",
+            "quantity_used": 150,
+            "unit": "g",
             "servings_used": 1.0,
             "calories_estimate": 250,
             "protein_g_estimate": 35,
@@ -148,6 +144,8 @@ def search_intake_csvs(tmp_path, monkeypatch):
             "source": "home",
             "stock_id": "",
             "amount_eaten": "1 cup",
+            "quantity_used": 1,
+            "unit": "cup",
             "servings_used": 1.0,
             "calories_estimate": 300,
             "protein_g_estimate": 10,
@@ -168,6 +166,8 @@ def search_intake_csvs(tmp_path, monkeypatch):
             "source": "inventory",
             "stock_id": "inv_002",
             "amount_eaten": "150g",
+            "quantity_used": 150,
+            "unit": "g",
             "servings_used": 1.0,
             "calories_estimate": 320,
             "protein_g_estimate": 28,
@@ -188,6 +188,8 @@ def search_intake_csvs(tmp_path, monkeypatch):
             "source": "home",
             "stock_id": "",
             "amount_eaten": "1.5 cups",
+            "quantity_used": 1.5,
+            "unit": "cups",
             "servings_used": 1.0,
             "calories_estimate": 360,
             "protein_g_estimate": 12,
@@ -201,15 +203,14 @@ def search_intake_csvs(tmp_path, monkeypatch):
         },
     ]
 
-    pd.DataFrame(
-        intake_history_rows,
-        columns=service.INTAKE_HISTORY_COLUMNS,
-    ).to_csv(intake_history_path, index=False)
-
-    pd.DataFrame(
-        intake_item_rows,
-        columns=service.INTAKE_ITEMS_COLUMNS,
-    ).to_csv(intake_items_path, index=False)
+    pd.DataFrame(intake_history_rows, columns=service.INTAKE_HISTORY_COLUMNS).to_csv(
+        intake_history_path,
+        index=False,
+    )
+    pd.DataFrame(intake_item_rows, columns=service.INTAKE_ITEMS_COLUMNS).to_csv(
+        intake_items_path,
+        index=False,
+    )
 
     return {
         "intake_history_path": intake_history_path,
@@ -225,23 +226,17 @@ def get_record(records, field_name, value):
     for record in records:
         if str(record[field_name]) == value:
             return record
-
     raise AssertionError(f"No record found where {field_name} == {value}")
 
 
-# ---------------------------------------------------------------------
 # Basic query search tests
-# ---------------------------------------------------------------------
 
 
 def test_search_intake_finds_parent_entry_by_meal_name(search_intake_csvs):
     result = service.search_intake(query="spaghetti")
-
     assert result["success"] is True
     assert "intake_003" in record_ids(result["matching_entries"], "intake_id")
-
     entry = get_record(result["matching_entries"], "intake_id", "intake_003")
-
     assert entry["record_type"] == "intake_entry"
     assert int(entry["child_item_count"]) == 2
     assert not entry["can_remove_entry"]
@@ -249,42 +244,25 @@ def test_search_intake_finds_parent_entry_by_meal_name(search_intake_csvs):
 
 def test_search_intake_finds_child_item_by_food_item(search_intake_csvs):
     result = service.search_intake(query="beef mince")
-
     assert result["success"] is True
-    assert "intake_item_003" in record_ids(
-        result["matching_items"],
-        "intake_item_id",
-    )
-
-    item = get_record(
-        result["matching_items"],
-        "intake_item_id",
-        "intake_item_003",
-    )
-
+    assert "intake_item_003" in record_ids(result["matching_items"], "intake_item_id")
+    item = get_record(result["matching_items"], "intake_item_id", "intake_item_003")
     assert item["record_type"] == "intake_item"
     assert item["food_item"] == "Beef mince"
     assert item["parent_date"] == "2026-05-16"
     assert item["parent_meal_type"] == "dinner"
     assert item["parent_meal_name"] == "Spaghetti bolognese"
-
-    # Child-only query matches should still include the parent entry.
     assert "intake_003" in record_ids(result["matching_entries"], "intake_id")
 
 
 def test_search_intake_is_case_insensitive(search_intake_csvs):
     result = service.search_intake(query="CHICKEN")
-
     assert "intake_001" in record_ids(result["matching_entries"], "intake_id")
-    assert "intake_item_001" in record_ids(
-        result["matching_items"],
-        "intake_item_id",
-    )
+    assert "intake_item_001" in record_ids(result["matching_items"], "intake_item_id")
 
 
 def test_search_intake_returns_empty_lists_when_no_match(search_intake_csvs):
     result = service.search_intake(query="not a real meal")
-
     assert result["success"] is True
     assert result["entry_count"] == 0
     assert result["item_count"] == 0
@@ -292,75 +270,48 @@ def test_search_intake_returns_empty_lists_when_no_match(search_intake_csvs):
     assert result["matching_items"] == []
 
 
-# ---------------------------------------------------------------------
 # Direct ID lookup tests
-# ---------------------------------------------------------------------
 
 
-def test_search_intake_by_intake_id_returns_parent_and_children(
-    search_intake_csvs,
-):
+def test_search_intake_by_intake_id_returns_parent_and_children(search_intake_csvs):
     result = service.search_intake(intake_id="intake_001")
-
     assert record_ids(result["matching_entries"], "intake_id") == {"intake_001"}
     assert record_ids(result["matching_items"], "intake_item_id") == {
         "intake_item_001",
         "intake_item_002",
     }
-
     entry = get_record(result["matching_entries"], "intake_id", "intake_001")
-
     assert int(entry["child_item_count"]) == 2
     assert not entry["can_remove_entry"]
 
 
-def test_search_intake_by_intake_item_id_returns_child_and_parent(
-    search_intake_csvs,
-):
+def test_search_intake_by_intake_item_id_returns_child_and_parent(search_intake_csvs):
     result = service.search_intake(intake_item_id="intake_item_003")
-
-    assert record_ids(result["matching_items"], "intake_item_id") == {
-        "intake_item_003",
-    }
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_003",
-    }
-
+    assert record_ids(result["matching_items"], "intake_item_id") == {"intake_item_003"}
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_003"}
     item = result["matching_items"][0]
-
     assert item["intake_id"] == "intake_003"
     assert item["parent_meal_name"] == "Spaghetti bolognese"
 
 
-def test_search_intake_unknown_intake_id_returns_empty_results(
-    search_intake_csvs,
-):
+def test_search_intake_unknown_intake_id_returns_empty_results(search_intake_csvs):
     result = service.search_intake(intake_id="intake_999")
-
     assert result["entry_count"] == 0
     assert result["item_count"] == 0
 
 
-def test_search_intake_unknown_intake_item_id_returns_empty_results(
-    search_intake_csvs,
-):
+def test_search_intake_unknown_intake_item_id_returns_empty_results(search_intake_csvs):
     result = service.search_intake(intake_item_id="intake_item_999")
-
     assert result["entry_count"] == 0
     assert result["item_count"] == 0
 
 
-# ---------------------------------------------------------------------
 # Filter tests
-# ---------------------------------------------------------------------
 
 
 def test_search_intake_filters_by_exact_date(search_intake_csvs):
     result = service.search_intake(date="2026-05-17")
-
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_001",
-    }
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_001"}
     assert record_ids(result["matching_items"], "intake_item_id") == {
         "intake_item_001",
         "intake_item_002",
@@ -368,11 +319,7 @@ def test_search_intake_filters_by_exact_date(search_intake_csvs):
 
 
 def test_search_intake_filters_by_date_range(search_intake_csvs):
-    result = service.search_intake(
-        date_from="2026-05-16",
-        date_to="2026-05-17",
-    )
-
+    result = service.search_intake(date_from="2026-05-16", date_to="2026-05-17")
     assert record_ids(result["matching_entries"], "intake_id") == {
         "intake_001",
         "intake_003",
@@ -387,32 +334,21 @@ def test_search_intake_filters_by_date_range(search_intake_csvs):
 
 def test_search_intake_filters_by_meal_type(search_intake_csvs):
     result = service.search_intake(meal_type="breakfast")
-
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_002",
-    }
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_002"}
     assert result["matching_items"] == []
-
     entry = result["matching_entries"][0]
-
     assert int(entry["child_item_count"]) == 0
     assert entry["can_remove_entry"]
 
 
 def test_search_intake_filters_by_parent_source(search_intake_csvs):
     result = service.search_intake(source="takeaway")
-
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_004",
-    }
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_004"}
     assert result["matching_items"] == []
 
 
-def test_search_intake_filters_by_child_source_and_includes_parents(
-    search_intake_csvs,
-):
+def test_search_intake_filters_by_child_source_and_includes_parents(search_intake_csvs):
     result = service.search_intake(source="inventory")
-
     assert record_ids(result["matching_items"], "intake_item_id") == {
         "intake_item_001",
         "intake_item_003",
@@ -425,23 +361,15 @@ def test_search_intake_filters_by_child_source_and_includes_parents(
 
 def test_search_intake_filters_by_stock_id(search_intake_csvs):
     result = service.search_intake(stock_id="inv_001")
-
-    assert record_ids(result["matching_items"], "intake_item_id") == {
-        "intake_item_001",
-    }
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_001",
-    }
-
+    assert record_ids(result["matching_items"], "intake_item_id") == {"intake_item_001"}
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_001"}
     item = result["matching_items"][0]
-
     assert item["stock_id"] == "inv_001"
     assert item["parent_meal_name"] == "Chicken pasta"
 
 
 def test_search_intake_filters_by_category(search_intake_csvs):
     result = service.search_intake(category="protein")
-
     assert record_ids(result["matching_items"], "intake_item_id") == {
         "intake_item_001",
         "intake_item_003",
@@ -453,67 +381,51 @@ def test_search_intake_filters_by_category(search_intake_csvs):
 
 
 def test_search_intake_combines_query_and_date_filter(search_intake_csvs):
-    result = service.search_intake(
-        query="chicken",
-        date="2026-05-17",
-    )
-
-    assert record_ids(result["matching_entries"], "intake_id") == {
-        "intake_001",
-    }
-    assert record_ids(result["matching_items"], "intake_item_id") == {
-        "intake_item_001",
-    }
+    result = service.search_intake(query="chicken", date="2026-05-17")
+    assert record_ids(result["matching_entries"], "intake_id") == {"intake_001"}
+    assert record_ids(result["matching_items"], "intake_item_id") == {"intake_item_001"}
 
 
-# ---------------------------------------------------------------------
+def test_search_intake_can_search_quantity_and_unit(search_intake_csvs):
+    result = service.search_intake(query="150")
+    assert "intake_item_001" in record_ids(result["matching_items"], "intake_item_id")
+    assert "intake_item_003" in record_ids(result["matching_items"], "intake_item_id")
+
+    result = service.search_intake(query="cup")
+    assert "intake_item_002" in record_ids(result["matching_items"], "intake_item_id")
+
+
 # Relationship context tests
-# ---------------------------------------------------------------------
 
 
-def test_search_intake_parent_with_children_cannot_be_removed(
-    search_intake_csvs,
-):
+def test_search_intake_parent_with_children_cannot_be_removed(search_intake_csvs):
     result = service.search_intake(intake_id="intake_001")
-
     entry = result["matching_entries"][0]
-
     assert int(entry["child_item_count"]) == 2
     assert not entry["can_remove_entry"]
 
 
-def test_search_intake_parent_without_children_can_be_removed(
-    search_intake_csvs,
-):
+def test_search_intake_parent_without_children_can_be_removed(search_intake_csvs):
     result = service.search_intake(intake_id="intake_002")
-
     entry = result["matching_entries"][0]
-
     assert int(entry["child_item_count"]) == 0
     assert entry["can_remove_entry"]
 
 
-def test_search_intake_child_results_include_parent_context(
-    search_intake_csvs,
-):
+def test_search_intake_child_results_include_parent_context(search_intake_csvs):
     result = service.search_intake(intake_item_id="intake_item_001")
-
     item = result["matching_items"][0]
-
     assert item["parent_date"] == "2026-05-17"
     assert item["parent_time"] == "18:30"
     assert item["parent_meal_type"] == "dinner"
     assert item["parent_meal_name"] == "Chicken pasta"
 
 
-# ---------------------------------------------------------------------
 # Limit and validation tests
-# ---------------------------------------------------------------------
 
 
 def test_search_intake_applies_limit_to_entries_and_items(search_intake_csvs):
     result = service.search_intake(limit=1)
-
     assert result["entry_count"] == 1
     assert result["item_count"] == 1
     assert len(result["matching_entries"]) == 1
@@ -522,7 +434,6 @@ def test_search_intake_applies_limit_to_entries_and_items(search_intake_csvs):
 
 def test_search_intake_caps_large_limit(search_intake_csvs):
     result = service.search_intake(limit=500)
-
     assert result["criteria"]["limit"] == 100
 
 
