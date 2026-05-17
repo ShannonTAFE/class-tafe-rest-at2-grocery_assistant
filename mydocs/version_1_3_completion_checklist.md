@@ -15,6 +15,7 @@ Data/resource payload tests: PASSED
 MCP Inspector testing: IN PROGRESS / MANUAL
 Curl manual testing: IN PROGRESS / MANUAL
 Documentation: UPDATED
+Automated baseline: 196 passed
 Final commit: PENDING
 ```
 
@@ -217,11 +218,13 @@ Existing resources remain:
 Useful commands:
 
 ```powershell
-pytest tests/test_inventory_consumption.py -q
-pytest tests/test_data_files.py tests/test_paths.py tests/test_mcp_resource_registration.py tests/test_resource_payloads.py -q
-pytest tests/test_mcp_tool_registration.py -q
-pytest -q
+.\.venv\Scripts\python.exe -m pytest tests/test_inventory_consumption.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_data_files.py tests/test_paths.py tests/test_mcp_resource_registration.py tests/test_resource_payloads.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_tool_registration.py -q
+.\.venv\Scripts\python.exe -m pytest
 ```
+
+The full automated suite currently passes with `196 passed`.
 
 ---
 

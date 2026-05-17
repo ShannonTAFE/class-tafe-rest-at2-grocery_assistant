@@ -674,13 +674,13 @@ cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
 ### Run the stdio server
 
 ```powershell
-python -m grocery_assistant_mcp.stdio_server
+.\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
 ```
 
 ### Run the streamable HTTP server
 
 ```powershell
-python -m grocery_assistant_mcp.streamable_http_server
+.\.venv\Scripts\python.exe -m grocery_assistant_mcp.streamable_http_server
 ```
 
 Expected MCP endpoint:
@@ -702,17 +702,19 @@ This is expected because the MCP endpoint expects MCP JSON-RPC requests, not nor
 Run the test suite from the project root:
 
 ```powershell
-pytest -q
+.\.venv\Scripts\python.exe -m pytest
 ```
+
+The project-level `pytest.ini` sets pytest to use `.pytest-tmp` for temporary files. This avoids the Windows temp-directory permission issue that can occur with the default pytest temp location.
 
 Useful focused tests:
 
 ```powershell
-pytest tests/test_inventory_consumption.py -q
-pytest tests/test_intake_edit_delete_service.py -q
-pytest tests/test_search_intake_service.py -q
-pytest tests/test_mcp_tool_registration.py -q
-pytest tests/test_mcp_resource_registration.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_inventory_consumption.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_intake_edit_delete_service.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_search_intake_service.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_tool_registration.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_resource_registration.py -q
 ```
 
 Version 1.3 was validated with:
@@ -731,17 +733,19 @@ Version 1.3 was validated with:
 
 ## Documentation Map
 
-Recommended documentation files for Version 1.3:
+The README is the main project overview. Detailed setup, testing, validation, and planning notes are kept in separate Markdown files:
 
 ```text
 README.md
-docs/project_roadmap.md
-docs/version_1_3_completion_checklist.md
-docs/mcp_testing_guide_v1_3.md
-docs/command_reference.md
-docs/development_journal_v1_3.md
-docs/future_version_plans.md
+mydocs/command_reference.md
+mydocs/mcp_testing_guide_v1_3.md
+mydocs/version_1_3_completion_checklist.md
+mydocs/development_journal_v1_3.md
+mydocs/project_roadmap.md
+mydocs/future_version_plans.md
 ```
+
+Older activity notes and captured MCP/curl request examples live under `grocery_assistant_mcp/docs/`. Treat those as supporting evidence and reference material, not the main setup path.
 
 ---
 

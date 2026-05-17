@@ -10,37 +10,56 @@ cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
 
 ---
 
+# Environment Setup
+
+Create the virtual environment if it does not already exist:
+
+```powershell
+python -m venv .venv
+```
+
+Install dependencies:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+---
+
 # Python / Pytest
 
 Run the full test suite:
 
 ```powershell
-pytest -q
+.\.venv\Scripts\python.exe -m pytest
 ```
+
+The project-level `pytest.ini` automatically uses `.pytest-tmp` as the pytest temp directory. This avoids the Windows permission issue seen with the default temp path.
 
 Run Version 1.3 focused tests:
 
 ```powershell
-pytest tests/test_inventory_consumption.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_inventory_consumption.py -q
 ```
 
 Run data, path, and resource tests:
 
 ```powershell
-pytest tests/test_data_files.py tests/test_paths.py tests/test_mcp_resource_registration.py tests/test_resource_payloads.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_data_files.py tests/test_paths.py tests/test_mcp_resource_registration.py tests/test_resource_payloads.py -q
 ```
 
 Run MCP tool registration tests:
 
 ```powershell
-pytest tests/test_mcp_tool_registration.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_mcp_tool_registration.py -q
 ```
 
 Run intake relationship tests:
 
 ```powershell
-pytest tests/test_intake_edit_delete_service.py -q
-pytest tests/test_search_intake_service.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_intake_edit_delete_service.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_search_intake_service.py -q
 ```
 
 ---
@@ -50,13 +69,13 @@ pytest tests/test_search_intake_service.py -q
 Run stdio server:
 
 ```powershell
-python -m grocery_assistant_mcp.stdio_server
+.\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
 ```
 
 Run streamable HTTP server:
 
 ```powershell
-python -m grocery_assistant_mcp.streamable_http_server
+.\.venv\Scripts\python.exe -m grocery_assistant_mcp.streamable_http_server
 ```
 
 Expected HTTP endpoint:

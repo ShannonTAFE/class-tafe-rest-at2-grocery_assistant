@@ -7,12 +7,18 @@ This guide records manual testing steps for Version 1.3 controlled inventory con
 Version 1.3 should be tested with:
 
 ```text
-pytest
+automated pytest suite
 MCP Inspector
 curl / Streamable HTTP checks
 ```
 
 Automated tests validate service behaviour. MCP Inspector and curl validate that the MCP server exposes the tools and resources correctly.
+
+Run automated tests from the project root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
 
 ---
 
@@ -21,7 +27,7 @@ Automated tests validate service behaviour. MCP Inspector and curl validate that
 From the project root:
 
 ```powershell
-python -m grocery_assistant_mcp.streamable_http_server
+.\.venv\Scripts\python.exe -m grocery_assistant_mcp.streamable_http_server
 ```
 
 Expected MCP endpoint:
