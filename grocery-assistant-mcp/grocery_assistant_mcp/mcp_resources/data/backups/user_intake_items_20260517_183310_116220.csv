@@ -2,4 +2,3 @@ intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,s
 intake_item_001,intake_002,beef mince,spud shed,meat,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
 intake_item_002,intake_003,bacon,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
 intake_item_003,intake_003,eggs,,,,,,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
-intake_item_004,intake_003,bread,,,,,,2.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,

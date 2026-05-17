@@ -2077,6 +2077,441 @@ def intake_entry_has_items(intake_id: str) -> bool:
     return len(get_intake_items_for_entry(intake_id)) > 0
 
 
+# ---------------------------------------------------------------------
+# Inventory consumption helpers
+# ---------------------------------------------------------------------
+
+def validate_consumption_amounts(
+    quantity_used: float = 0,
+    servings_used: float = 0,
+) -> dict[str, float]:
+    """
+    Validate inventory consumption amounts.
+
+    At least one consumption amount must be greater than zero. Both values are
+    allowed because some inventory items track physical quantity, servings, or both.
+    """
+    quantity_value = validate_non_negative_number(quantity_used, "quantity_used")
+    servings_value = validate_non_negative_number(servings_used, "servings_used")
+
+    if quantity_value == 0 and servings_value == 0:
+        raise ValueError(
+            "At least one of quantity_used or servings_used must be greater than 0."
+        )
+
+    return {
+        "quantity_used": quantity_value,
+        "servings_used": servings_value,
+    }
+
+
+def calculate_inventory_after_consumption(
+    inventory_item: dict,
+    quantity_used: float = 0,
+    servings_used: float = 0,
+) -> dict:
+    """
+    Calculate the inventory row state after controlled consumption.
+
+    This function performs no file writes. It only validates and returns the
+    updated inventory item dictionary.
+    """
+    consumption_values = validate_consumption_amounts(
+        quantity_used=quantity_used,
+        servings_used=servings_used,
+    )
+
+    current_quantity = validate_non_negative_number(
+        inventory_item.get("quantity", 0),
+        "quantity",
+    )
+    current_servings = validate_non_negative_number(
+        inventory_item.get("servings_remaining", 0),
+        "servings_remaining",
+    )
+
+    current_status = validate_choice(
+        inventory_item.get("stock_status", "ok") or "ok",
+        VALID_STOCK_STATUSES,
+        "stock_status",
+    )
+
+    if current_status == "removed":
+        raise ValueError(
+            "Cannot consume an inventory item with stock_status='removed'."
+        )
+
+    final_quantity = current_quantity - consumption_values["quantity_used"]
+    final_servings = current_servings - consumption_values["servings_used"]
+
+    if final_quantity < 0:
+        raise ValueError("quantity_used cannot exceed current quantity.")
+
+    if final_servings < 0:
+        raise ValueError("servings_used cannot exceed current servings.")
+
+    # Avoid floating point residue such as 1.1102230246251565e-16.
+    final_quantity = max(final_quantity, 0.0)
+    final_servings = max(final_servings, 0.0)
+
+    if final_quantity == 0 and final_servings == 0:
+        final_status = "out"
+    else:
+        final_status = infer_stock_status(
+            quantity=final_quantity,
+            servings_remaining=final_servings,
+            stock_status=current_status,
+        )
+
+    final_status = validate_choice(
+        final_status,
+        VALID_STOCK_STATUSES,
+        "stock_status",
+    )
+
+    validate_inventory_stock_consistency(
+        quantity=final_quantity,
+        servings_remaining=final_servings,
+        stock_status=final_status,
+    )
+
+    updated_item = dict(inventory_item)
+    updated_item["quantity"] = final_quantity
+    updated_item["servings_remaining"] = final_servings
+    updated_item["stock_status"] = final_status
+
+    return updated_item
+
+
+def apply_inventory_consumption_to_df(
+    inventory_df: pd.DataFrame,
+    stock_id: str,
+    quantity_used: float = 0,
+    servings_used: float = 0,
+) -> tuple[pd.DataFrame, dict, dict, dict[str, float]]:
+    """
+    Apply controlled inventory consumption to an inventory DataFrame.
+
+    Returns:
+    - updated inventory DataFrame
+    - inventory item before consumption
+    - inventory item after consumption
+    - cleaned consumption amount values
+
+    This function performs no file writes.
+    """
+    stock_id = clean_text(stock_id, "stock_id", required=True)
+
+    if "stock_id" not in inventory_df.columns:
+        raise ValueError("Cannot consume inventory because 'stock_id' column is missing.")
+
+    matching_rows = inventory_df.index[
+        inventory_df["stock_id"].fillna("").astype(str).str.strip() == stock_id
+    ].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No inventory item found with stock_id: {stock_id}")
+
+    row_index = matching_rows[0]
+
+    consumption_values = validate_consumption_amounts(
+        quantity_used=quantity_used,
+        servings_used=servings_used,
+    )
+
+    inventory_before = inventory_df.loc[row_index].fillna("").to_dict()
+
+    inventory_after = calculate_inventory_after_consumption(
+        inventory_item=inventory_before,
+        quantity_used=consumption_values["quantity_used"],
+        servings_used=consumption_values["servings_used"],
+    )
+
+    updated_inventory_df = inventory_df.copy()
+
+    updated_inventory_df.at[row_index, "quantity"] = inventory_after["quantity"]
+    updated_inventory_df.at[row_index, "servings_remaining"] = inventory_after[
+        "servings_remaining"
+    ]
+    updated_inventory_df.at[row_index, "stock_status"] = inventory_after["stock_status"]
+
+    return (
+        updated_inventory_df,
+        inventory_before,
+        inventory_after,
+        consumption_values,
+    )
+
+
+def build_intake_item_from_inventory_row(
+    intake_items_df: pd.DataFrame,
+    intake_id: str,
+    inventory_item: dict,
+    amount_eaten: str = "",
+    servings_used: float = 0,
+    calories_estimate: float = 0,
+    protein_g_estimate: float = 0,
+    carbs_g_estimate: float = 0,
+    fat_g_estimate: float = 0,
+    fibre_g_estimate: float = 0,
+    sugar_g_estimate: float = 0,
+    sodium_mg_estimate: float = 0,
+    nutrition_confidence: str = "medium",
+    notes: str = "",
+) -> dict:
+    """
+    Build a child intake item from an inventory row.
+
+    This function performs no file writes. It creates the row dictionary only.
+    """
+    intake_id = clean_text(intake_id, "intake_id", required=True)
+    amount_eaten = clean_text(amount_eaten, "amount_eaten")
+    notes = clean_text(notes, "notes")
+
+    stock_id = clean_text(
+        inventory_item.get("stock_id", ""),
+        "stock_id",
+        required=True,
+    )
+
+    food_item = clean_text(
+        inventory_item.get("food_item", ""),
+        "food_item",
+        required=True,
+    )
+
+    brand = clean_text(inventory_item.get("brand", ""), "brand")
+    category = clean_text(inventory_item.get("category", ""), "category")
+
+    nutrition_confidence = validate_choice_or_blank(
+        nutrition_confidence,
+        VALID_CONFIDENCE_LEVELS,
+        "nutrition_confidence",
+        default="unknown",
+    )
+
+    numeric_values = validate_non_negative_fields({
+        "servings_used": servings_used,
+        "calories_estimate": calories_estimate,
+        "protein_g_estimate": protein_g_estimate,
+        "carbs_g_estimate": carbs_g_estimate,
+        "fat_g_estimate": fat_g_estimate,
+        "fibre_g_estimate": fibre_g_estimate,
+        "sugar_g_estimate": sugar_g_estimate,
+        "sodium_mg_estimate": sodium_mg_estimate,
+    })
+
+    existing_ids = intake_items_df["intake_item_id"].dropna().astype(str).tolist()
+    intake_item_id = generate_next_id(
+        existing_ids,
+        prefix="intake_item",
+        width=3,
+    )
+
+    return {
+        "intake_item_id": intake_item_id,
+        "intake_id": intake_id,
+        "food_item": food_item,
+        "brand": brand,
+        "category": category,
+        "source": "inventory",
+        "stock_id": stock_id,
+        "amount_eaten": amount_eaten,
+        "servings_used": numeric_values["servings_used"],
+        "calories_estimate": numeric_values["calories_estimate"],
+        "protein_g_estimate": numeric_values["protein_g_estimate"],
+        "carbs_g_estimate": numeric_values["carbs_g_estimate"],
+        "fat_g_estimate": numeric_values["fat_g_estimate"],
+        "fibre_g_estimate": numeric_values["fibre_g_estimate"],
+        "sugar_g_estimate": numeric_values["sugar_g_estimate"],
+        "sodium_mg_estimate": numeric_values["sodium_mg_estimate"],
+        "nutrition_confidence": nutrition_confidence,
+        "notes": notes,
+    }
+
+
+def consume_inventory_item(
+    stock_id: str,
+    quantity_used: float = 0,
+    servings_used: float = 0,
+    usage_reason: str = "consumed",
+    notes: str = "",
+) -> dict:
+    """
+    Consume part or all of a tracked inventory item.
+
+    This updates user_inventory.csv only. It does not create intake records,
+    remove inventory rows, or create food waste records.
+    """
+    stock_id = clean_text(stock_id, "stock_id", required=True)
+    usage_reason = clean_text(usage_reason, "usage_reason") or "consumed"
+    notes = clean_text(notes, "notes")
+
+    inventory_df = read_csv_for_write(
+        INVENTORY_PATH,
+        INVENTORY_COLUMNS,
+    )
+
+    (
+        updated_inventory_df,
+        inventory_before,
+        inventory_after,
+        consumption_values,
+    ) = apply_inventory_consumption_to_df(
+        inventory_df=inventory_df,
+        stock_id=stock_id,
+        quantity_used=quantity_used,
+        servings_used=servings_used,
+    )
+
+    backup_path = backup_csv(INVENTORY_PATH)
+    save_csv(updated_inventory_df, INVENTORY_PATH)
+
+    return {
+        "success": True,
+        "message": "Inventory item consumed.",
+        "stock_id": stock_id,
+        "quantity_used": consumption_values["quantity_used"],
+        "servings_used": consumption_values["servings_used"],
+        "usage_reason": usage_reason,
+        "notes": notes,
+        "inventory_before": inventory_before,
+        "inventory_after": inventory_after,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+def add_intake_item_from_inventory(
+    intake_id: str,
+    stock_id: str,
+    amount_eaten: str = "",
+    quantity_used: float = 0,
+    servings_used: float = 0,
+    calories_estimate: float = 0,
+    protein_g_estimate: float = 0,
+    carbs_g_estimate: float = 0,
+    fat_g_estimate: float = 0,
+    fibre_g_estimate: float = 0,
+    sugar_g_estimate: float = 0,
+    sodium_mg_estimate: float = 0,
+    nutrition_confidence: str = "medium",
+    notes: str = "",
+) -> dict:
+    """
+    Add a child intake item from a tracked inventory item and consume inventory.
+
+    This is the controlled Version 1.3 bridge between intake logging and
+    inventory mutation.
+
+    It writes to:
+    - user_intake_items.csv
+    - user_inventory.csv
+
+    It does not:
+    - create a parent intake entry
+    - remove inventory rows
+    - create food waste records
+    - modify user_intake_history.csv
+    """
+    intake_id = clean_text(intake_id, "intake_id", required=True)
+    stock_id = clean_text(stock_id, "stock_id", required=True)
+    amount_eaten = clean_text(amount_eaten, "amount_eaten")
+    notes = clean_text(notes, "notes")
+
+    inventory_df = read_csv_for_write(
+        INVENTORY_PATH,
+        INVENTORY_COLUMNS,
+    )
+
+    history_df = read_csv_for_write(
+        INTAKE_HISTORY_PATH,
+        INTAKE_HISTORY_COLUMNS,
+    )
+
+    intake_items_df = read_csv_for_write(
+        INTAKE_ITEMS_PATH,
+        INTAKE_ITEMS_COLUMNS,
+    )
+
+    # Validate parent intake entry using the already-read DataFrame.
+    intake_id = require_existing_id(
+        df=history_df,
+        id_column="intake_id",
+        id_value=intake_id,
+        entity_name="intake entry",
+    )
+
+    # Validate and calculate inventory consumption before writing anything.
+    (
+        updated_inventory_df,
+        inventory_before,
+        inventory_after,
+        consumption_values,
+    ) = apply_inventory_consumption_to_df(
+        inventory_df=inventory_df,
+        stock_id=stock_id,
+        quantity_used=quantity_used,
+        servings_used=servings_used,
+    )
+
+    # Build the child intake item before writing anything.
+    new_intake_item = build_intake_item_from_inventory_row(
+        intake_items_df=intake_items_df,
+        intake_id=intake_id,
+        inventory_item=inventory_before,
+        amount_eaten=amount_eaten,
+        servings_used=consumption_values["servings_used"],
+        calories_estimate=calories_estimate,
+        protein_g_estimate=protein_g_estimate,
+        carbs_g_estimate=carbs_g_estimate,
+        fat_g_estimate=fat_g_estimate,
+        fibre_g_estimate=fibre_g_estimate,
+        sugar_g_estimate=sugar_g_estimate,
+        sodium_mg_estimate=sodium_mg_estimate,
+        nutrition_confidence=nutrition_confidence,
+        notes=notes,
+    )
+
+    updated_intake_items_df = pd.concat(
+        [intake_items_df, pd.DataFrame([new_intake_item])],
+        ignore_index=True,
+    )
+
+    # Backups happen only after all validation and row construction succeeds.
+    inventory_backup_path = backup_csv(INVENTORY_PATH)
+    intake_items_backup_path = backup_csv(INTAKE_ITEMS_PATH)
+
+    try:
+        save_csv(updated_inventory_df, INVENTORY_PATH)
+        save_csv(updated_intake_items_df, INTAKE_ITEMS_PATH)
+    except Exception as exc:
+        # Best-effort rollback for this two-file workflow.
+        # This does not replace a real database transaction, but it reduces
+        # the risk of leaving inventory and intake items out of sync.
+        try:
+            save_csv(inventory_df, INVENTORY_PATH)
+            save_csv(intake_items_df, INTAKE_ITEMS_PATH)
+        except Exception as rollback_exc:
+            raise RuntimeError(
+                "Failed to save linked intake/inventory update, and rollback also failed."
+            ) from rollback_exc
+
+        raise RuntimeError(
+            "Failed to save linked intake/inventory update. Original CSV state was restored."
+        ) from exc
+
+    return {
+        "success": True,
+        "message": "Intake item added from inventory and inventory was consumed.",
+        "intake_item": new_intake_item,
+        "stock_id": stock_id,
+        "quantity_used": consumption_values["quantity_used"],
+        "servings_used": consumption_values["servings_used"],
+        "inventory_before": inventory_before,
+        "inventory_after": inventory_after,
+        "inventory_backup_created": str(inventory_backup_path) if inventory_backup_path else None,
+        "intake_items_backup_created": str(intake_items_backup_path) if intake_items_backup_path else None,
+    }
+
 
 # ---------------------------------------------------------------------
 # Inventory write service functions
