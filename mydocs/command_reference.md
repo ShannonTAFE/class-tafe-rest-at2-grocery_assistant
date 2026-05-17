@@ -1,10 +1,8 @@
-# Grocery Assistant MCP Command Reference
+# Command Reference — Version 1.3
 
-## Purpose
+## Project Root
 
-This file collects common commands used during development and testing of the Grocery Assistant MCP project.
-
-Run most commands from the project root:
+Typical project root:
 
 ```powershell
 cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
@@ -12,7 +10,7 @@ cd C:\Users\shann\TafeLocal\rest-at2\grocery-assistant-mcp
 
 ---
 
-# Run Tests
+# Python / Pytest
 
 Run the full test suite:
 
@@ -20,328 +18,130 @@ Run the full test suite:
 pytest -q
 ```
 
-Run a specific test file:
+Run Version 1.3 focused tests:
 
 ```powershell
-pytest tests/test_v1_1_write_foundation.py -q
+pytest tests/test_inventory_consumption.py -q
 ```
 
-Run MCP registration tests:
+Run data, path, and resource tests:
+
+```powershell
+pytest tests/test_data_files.py tests/test_paths.py tests/test_mcp_resource_registration.py tests/test_resource_payloads.py -q
+```
+
+Run MCP tool registration tests:
 
 ```powershell
 pytest tests/test_mcp_tool_registration.py -q
 ```
 
+Run intake relationship tests:
+
+```powershell
+pytest tests/test_intake_edit_delete_service.py -q
+pytest tests/test_search_intake_service.py -q
+```
+
 ---
 
-# Run the MCP Stdio Server
+# MCP Servers
 
-Run the stdio server directly:
+Run stdio server:
 
 ```powershell
 python -m grocery_assistant_mcp.stdio_server
 ```
 
-This is useful when testing a local MCP stdio connection.
-
----
-
-# Run Stdio Server Through MCP Inspector
-
-From the project root:
-
-```powershell
-npx @modelcontextprotocol/inspector .\.venv\Scripts\python.exe -m grocery_assistant_mcp.stdio_server
-```
-
-This launches MCP Inspector and connects it to the stdio server.
-
----
-
-# Open MCP Inspector Manually
-
-```powershell
-npx @modelcontextprotocol/inspector
-```
-
-Use this when you want to manually configure the server connection inside the Inspector UI.
-
----
-
-# Run the Streamable HTTP Server
+Run streamable HTTP server:
 
 ```powershell
 python -m grocery_assistant_mcp.streamable_http_server
 ```
 
-Expected endpoint:
+Expected HTTP endpoint:
 
 ```text
 http://127.0.0.1:8000/mcp
 ```
 
-Browser checks may show:
-
-```text
-GET /      -> 404 Not Found
-GET /mcp   -> 406 Not Acceptable
-```
-
-This is expected. `/mcp` expects MCP JSON-RPC requests with the correct headers.
-
 ---
 
-# Connect MCP Inspector to HTTP Server
+# MCP Inspector
 
-Use these MCP Inspector settings:
+Use MCP Inspector to confirm tools and resources.
+
+Version 1.3 tools:
 
 ```text
-Transport: Streamable HTTP
-URL: http://127.0.0.1:8000/mcp
+consume_inventory_item
+add_intake_item_from_inventory
 ```
 
----
+Version 1.3 resource:
 
-# PowerShell Curl Variables
-
-In a second terminal, set:
-
-```powershell
-$BaseUrl = "http://127.0.0.1:8000"
-$McpUrl = "$BaseUrl/mcp"
-
-$ContentType = "Content-Type: application/json"
-$Accept = "Accept: application/json, text/event-stream"
-$ProtocolVersion = "MCP-Protocol-Version: 2025-06-18"
+```text
+grocery://inventory-consumption
 ```
 
 ---
 
-# Curl Request Files
+# Example Tool Arguments
 
-Suggested folder:
+## consume_inventory_item
 
-```text
-curl_requests/
+```json
+{
+  "stock_id": "inv_002",
+  "quantity_used": 500,
+  "servings_used": 0,
+  "consumption_type": "consumed",
+  "tracking_confidence": "medium",
+  "notes": "I drank 500ml of milk"
+}
 ```
 
-Suggested request files:
+## add_intake_item_from_inventory
 
-```text
-01_initialize.json
-02_initialized_notification.json
-03_resources_list.json
-04_read_inventory.json
-05_tools_list.json
-06_prompts_list.json
-07_add_inventory_item.json
-08_update_inventory_item.json
-09_remove_inventory_item.json
-10_add_intake_entry.json
-11_add_intake_item.json
-```
-
----
-
-# Initialize MCP Session
-
-Request file:
-
-```text
-curl_requests/01_initialize.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  --data-binary "@curl_requests/01_initialize.json"
-```
-
-After this succeeds, copy the returned session ID.
-
-Example:
-
-```text
-mcp-session-id: 7ab88075d6744da99d21802e73b6b74a
-```
-
-Set:
-
-```powershell
-$McpSessionId = "7ab88075d6744da99d21802e73b6b74a"
+```json
+{
+  "intake_id": "intake_001",
+  "stock_id": "inv_002",
+  "amount_eaten": "500 ml",
+  "quantity_used": 500,
+  "servings_used": 0,
+  "calories_estimate": 250,
+  "protein_g_estimate": 17,
+  "carbs_g_estimate": 24,
+  "fat_g_estimate": 9,
+  "fibre_g_estimate": 0,
+  "sugar_g_estimate": 24,
+  "sodium_mg_estimate": 200,
+  "nutrition_confidence": "medium",
+  "consumption_type": "consumed",
+  "tracking_confidence": "medium",
+  "notes": "Milk consumed with meal"
+}
 ```
 
 ---
 
-# Send Initialized Notification
+# Git
 
-Request file:
-
-```text
-curl_requests/02_initialized_notification.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/02_initialized_notification.json"
-```
-
-Purpose:
+Suggested branch name:
 
 ```text
-Completes the MCP session setup after initialize.
+feature/version-1.3-controlled-consumption
 ```
 
----
-
-# List Resources
-
-Request file:
+Suggested commit message:
 
 ```text
-curl_requests/03_resources_list.json
+feat: add controlled inventory consumption workflows
 ```
 
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/03_resources_list.json"
-```
-
-Expected resources may include:
+Suggested final docs commit:
 
 ```text
-grocery://inventory
-grocery://intake/history
-grocery://intake/items
-grocery://food-waste
-grocery://food-waste/expired
+docs: update documentation for version 1.3
 ```
-
----
-
-# Read Inventory
-
-Request file:
-
-```text
-curl_requests/04_read_inventory.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/04_read_inventory.json"
-```
-
-This confirms:
-
-```text
-MCP HTTP request -> resource layer -> service layer -> inventory CSV -> JSON response
-```
-
----
-
-# List Tools
-
-Request file:
-
-```text
-curl_requests/05_tools_list.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/05_tools_list.json"
-```
-
-Expected Version 1.1 tools include:
-
-```text
-search_inventory
-add_inventory_item
-update_inventory_item
-remove_inventory_item
-get_recent_intake
-get_daily_intake_summary
-add_intake_entry
-add_intake_item
-```
-
----
-
-# List Prompts
-
-Request file:
-
-```text
-curl_requests/06_prompts_list.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/06_prompts_list.json"
-```
-
-Expected prompts may include:
-
-```text
-summarise_inventory
-find_inventory_items
-suggest_meals_from_inventory
-review_recent_intake
-review_daily_intake
-suggest_next_meal
-```
-
----
-
-# Test Add Inventory Item
-
-Request file:
-
-```text
-curl_requests/07_add_inventory_item.json
-```
-
-Command:
-
-```powershell
-curl.exe -i -X POST $McpUrl `
-  -H $ContentType `
-  -H $Accept `
-  -H "mcp-session-id: $McpSessionId" `
-  --data-binary "@curl_requests/07_add_inventory_item.json"
-```
-
-After running this command, confirm the item was added by reading the inventory again.
-
----
-
-

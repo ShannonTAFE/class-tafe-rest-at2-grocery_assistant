@@ -1,78 +1,80 @@
-# Grocery Assistant MCP — Version 1.2
+# Grocery Assistant MCP — Version 1.3
 
 ## Overview
 
-Grocery Assistant MCP is a local Model Context Protocol server for working with grocery inventory, food intake, and food waste records.
+Grocery Assistant MCP is a local Model Context Protocol server for working with grocery inventory, food intake, food waste, and inventory consumption records.
 
-Version 1.2 builds on the Version 1.1 safe write foundation by adding relationship-safe intake search, editing, and cleanup tools. Version 1.1 introduced controlled write behaviour for inventory, intake, and food waste. Version 1.2 focuses specifically on helping users find, inspect, update, and remove intake records without breaking the parent-child relationship between meal entries and ingredient/component rows.
+Version 1.3 builds on the Version 1.2 relationship-safe intake editing foundation by adding controlled inventory consumption workflows. Version 1.2 made it possible to search, update, and remove intake records without breaking the parent-child relationship between meal entries and item rows. Version 1.3 now adds explicit tools for reducing tracked inventory and recording why inventory changed.
 
 The project currently uses local CSV files as the data layer. Core service functions read, write, validate, and protect these files, while MCP resources and tools expose selected behaviour to an MCP-compatible client.
 
-The main principle for Version 1.2 is:
+The main principle for Version 1.3 is:
 
-> Find and inspect intake records before editing or removing them.
+> Inventory should only be consumed through explicit, tested consumption workflows.
 
-Version 1.2 intentionally avoids hidden side effects such as automatic inventory deduction, automatic meal parsing, batch meal logging, or cascade deletion of child records. More automated workflows are planned for future versions after the relationship rules are stable.
+Version 1.3 intentionally avoids hidden side effects. Ordinary intake logging still does not automatically deduct inventory. Inventory is deducted only when the user calls a controlled consumption tool.
 
 ---
 
-## Version 1.2 Capabilities
+## Version 1.3 Capabilities
 
-Version 1.2 supports:
+Version 1.3 supports all Version 1.2 capabilities plus:
 
-- reading current grocery inventory
-- reading meal-level intake history
-- reading ingredient/component-level intake records
-- reading food waste records
-- searching inventory
-- adding inventory items
-- updating inventory items
-- removing inventory items
-- creating food waste records through inventory removal
-- adding parent intake entries
-- adding child intake item records
-- reviewing recent intake
-- summarising daily intake
-- searching intake parent and child records
-- updating parent intake entries
-- updating child intake items
-- removing child intake items
-- removing parent intake entries only when safe
+- controlled inventory-only consumption
+- intake-linked inventory consumption
+- inventory consumption event logging
+- a new inventory consumption resource
+- canonical inventory stock statuses
+- item-level `quantity_used` and `unit` tracking in intake item rows
+- service-layer tests for inventory consumption workflows
+- MCP tool registration for consumption tools
+- resource registration for inventory consumption records
 
-The major Version 1.2 addition is the intake cleanup workflow:
+The major Version 1.3 workflow addition is:
 
 ```text
-search_intake
+consume_inventory_item
     ↓
-update_intake_entry / update_intake_item
+update inventory quantity / servings
     ↓
-remove_intake_item
+record user_inventory_consumption.csv event
+```
+
+And the linked intake workflow is:
+
+```text
+add_intake_entry
     ↓
-remove_intake_entry only when no child items remain
+add_intake_item_from_inventory
+    ↓
+create child intake item
+    ↓
+deduct inventory
+    ↓
+record linked inventory consumption event
 ```
 
 ---
 
-## Version 1.2 Boundaries
+## Version 1.3 Boundaries
 
-Version 1.2 does **not** yet support:
+Version 1.3 does **not** yet support:
 
-- automatic inventory deduction when logging intake
-- automatic meal parsing from free text into ingredient rows
-- automatic food waste inference from leftovers
-- automatic shopping list generation
-- batch meal logging across multiple CSV files
-- inventory consumption tools
-- cascade deletion of child intake items when removing a parent meal
-- long-term waste pattern analysis
+- automatic inventory deduction from ordinary `add_intake_item`
+- automatic batch meal parsing
+- automatic recipe-level inventory deduction
+- automatic reversal of inventory consumption when intake items are edited or removed
+- automatic parent meal total recalculation after adding inventory-linked child items
+- shopping list generation
 - meal planning intelligence
 - restock recommendation intelligence
+- waste pattern analysis automation
 
 These are planned for later versions.
 
-The boundary is important because intake, inventory, and waste are related but not identical. Eating a meal does not always mean a tracked inventory item should be reduced. A meal may come from a restaurant, takeaway, leftovers, shared food, or untracked ingredients.
+The boundary is important because intake, inventory, and consumption are related but not identical. A meal may come from a restaurant, takeaway, shared food, leftovers, or untracked ingredients. For that reason, `stock_id` on a normal intake item can identify a relationship, but it should not silently mutate inventory.
 
-Version 1.2 also keeps intake cleanup conservative. A parent intake entry cannot be removed while child intake items still exist. Child items must be removed first. This avoids orphaned records and makes the cleanup process explicit.
+Version 1.3 adds explicit tools for inventory mutation instead.
 
 ---
 
@@ -82,9 +84,10 @@ The project separates grocery data into purpose-specific CSV files.
 
 ```text
 user_inventory.csv
-user_food_waste.csv
 user_intake_history.csv
 user_intake_items.csv
+user_inventory_consumption.csv
+user_food_waste.csv
 ```
 
 This separation keeps the data model easier to reason about.
@@ -93,18 +96,43 @@ This separation keeps the data model easier to reason about.
 
 ### Inventory
 
-Inventory records food items that are useful for current or future grocery decisions.
+`user_inventory.csv` stores the current tracked grocery stock state.
 
 Inventory can include:
 
 - currently available items
 - low-stock items
-- empty or out-of-stock staples
+- very-low-stock items
+- out-of-stock items kept as restock signals
 - expired items still physically present
 - items the user commonly buys
 - items kept as shopping or planning reminders
 
-Keeping some out-of-stock items is intentional. It helps the assistant understand common staples, restock patterns, and items that may not be urgent to replace.
+Keeping some out-of-stock items is intentional. It helps the assistant understand common staples, restock patterns, frequently used items, and items that may not be urgent to replace.
+
+#### Canonical Stock Status Values
+
+Version 1.3 uses this stock status vocabulary:
+
+```text
+in_stock
+low
+very_low
+out
+expired
+```
+
+Removed values from earlier examples:
+
+```text
+ok
+very low
+empty
+used
+removed
+```
+
+These older values should not be used in Version 1.3 data.
 
 ---
 
@@ -151,7 +179,48 @@ user_intake_items.csv
     intake_id
 ```
 
-`stock_id` inside an intake item is optional. This allows the item to link to inventory when known, while still supporting restaurant meals, takeaway meals, and untracked food.
+`stock_id` inside an intake item is optional. This allows the item to link to inventory when known, while still supporting restaurant meals, takeaway meals, shared food, and untracked food.
+
+Version 1.3 adds two important intake item fields:
+
+```text
+quantity_used
+unit
+```
+
+These fields preserve machine-readable quantity information alongside the human-readable `amount_eaten` field.
+
+Example:
+
+```text
+amount_eaten = "500 ml"
+quantity_used = 500
+unit = "ml"
+servings_used = 0
+```
+
+---
+
+### Inventory Consumption
+
+`user_inventory_consumption.csv` records inventory usage events.
+
+This file answers questions such as:
+
+- why did inventory quantity decrease?
+- was the inventory reduction linked to an intake item?
+- how much quantity or how many servings were used?
+- what was the before/after stock state?
+- was the consumption estimate low, medium, or high confidence?
+
+Inventory consumption records can be created by:
+
+```text
+consume_inventory_item
+add_intake_item_from_inventory
+```
+
+Inventory consumption is separate from food waste. Normal consumption is not waste.
 
 ---
 
@@ -186,8 +255,10 @@ The core service is responsible for:
 - writing CSV files
 - validating input
 - generating IDs
-- enforcing inventory, intake, and waste rules
+- enforcing inventory, intake, consumption, and waste rules
 - protecting parent-child intake relationships
+- preventing over-consumption
+- recording inventory consumption events
 - converting data into JSON-ready dictionaries
 
 The MCP tool layer should remain thin. Business rules should stay in the service layer.
@@ -215,7 +286,7 @@ Generic helpers are used for reusable write behaviour such as:
 - generating the next ID
 - requiring non-empty fields
 
-Domain-specific rules should not live in this file. Rules such as valid stock statuses, valid meal types, and waste-related removal types belong in the service layer.
+Domain-specific rules should not live in this file. Rules such as valid stock statuses, valid meal types, consumption types, and waste-related removal types belong in the service layer.
 
 ---
 
@@ -240,6 +311,18 @@ grocery://intake-items
 ```
 
 The `grocery://intake-items` resource is a legacy/compatibility alias for intake item records.
+
+---
+
+### Inventory Consumption Resource
+
+```text
+grocery://inventory-consumption
+```
+
+Returns inventory consumption event records.
+
+This resource explains why inventory changed over time. It includes inventory-only consumption events and intake-linked consumption events.
 
 ---
 
@@ -287,7 +370,10 @@ Expected behaviour:
 - rejects invalid dates
 - generates a new `stock_id`
 - stores initial quantity/serving values for later comparison
+- validates Version 1.3 stock status values
 - backs up the CSV before saving
+
+Do not use this tool to reduce stock. Use `consume_inventory_item` or `add_intake_item_from_inventory` instead.
 
 #### `update_inventory_item`
 
@@ -309,7 +395,7 @@ Expected behaviour:
 
 - requires an existing `stock_id`
 - validates the removal type
-- removes or marks the inventory row according to the project behaviour
+- removes the inventory row from active tracking
 - creates a food waste record only for waste-related removal types
 
 Waste-related removal types:
@@ -368,7 +454,7 @@ The summary can use:
 
 Searches both parent intake entries and child intake item records.
 
-This is a read-only Version 1.2 workflow tool. It helps locate `intake_id` and `intake_item_id` values before calling update or remove tools.
+This is a read-only workflow tool. It helps locate `intake_id` and `intake_item_id` values before calling update or remove tools.
 
 Supported filters include:
 
@@ -430,9 +516,13 @@ Expected behaviour:
 - requires a food item name
 - accepts optional `stock_id`
 - validates `stock_id` only when supplied
+- supports `quantity_used`, `unit`, and `servings_used`
 - rejects orphan intake items
-- rejects negative serving or nutrition values
+- rejects negative quantity, serving, or nutrition values
 - does not automatically deduct inventory
+- does not create an inventory consumption record
+
+Use this for restaurant meals, takeaway food, shared food, untracked ingredients, or historical estimates that should not reduce inventory.
 
 #### `update_intake_entry`
 
@@ -450,8 +540,6 @@ Expected behaviour:
 - does not automatically update child intake items
 - does not automatically deduct inventory
 
-Use this when correcting meal-level details such as date, time, meal type, meal name, source, amount eaten, nutrition estimates, hunger notes, or general notes.
-
 #### `update_intake_item`
 
 Updates an existing child ingredient/component row.
@@ -463,13 +551,12 @@ Expected behaviour:
 - preserves fields that are not provided
 - validates parent `intake_id` if changed
 - validates `stock_id` if supplied
+- validates `quantity_used`, `unit`, and `servings_used`
 - rejects unknown parent intake entries
 - rejects unknown stock IDs when a non-blank stock ID is supplied
-- rejects negative serving or nutrition values
+- rejects negative quantity, serving, or nutrition values
 - does not automatically update the parent meal totals
 - does not automatically deduct inventory
-
-Use this when correcting item-level details such as food item name, brand, category, source, stock ID, amount eaten, servings used, item-level nutrition estimates, or notes.
 
 #### `remove_intake_item`
 
@@ -480,6 +567,7 @@ Expected behaviour:
 - requires an existing `intake_item_id`
 - removes the selected child item only
 - does not remove the parent intake entry
+- does not restore inventory
 - backs up the CSV before saving
 
 Use this before removing a parent intake entry that still has child items.
@@ -497,7 +585,55 @@ Expected behaviour:
 - removes the parent entry only after it is safe
 - backs up the CSV before saving
 
-Version 1.2 does not cascade delete child intake items. This is intentional. It keeps cleanup explicit and prevents accidental loss of ingredient/component records.
+Version 1.3 still does not cascade delete child intake items. This is intentional.
+
+---
+
+### Controlled Consumption Tools
+
+```text
+consume_inventory_item
+add_intake_item_from_inventory
+```
+
+#### `consume_inventory_item`
+
+Consumes part or all of a tracked inventory item without creating intake records.
+
+Expected behaviour:
+
+- requires an existing `stock_id`
+- accepts `quantity_used` and/or `servings_used`
+- requires at least one consumption amount greater than zero
+- rejects negative consumption amounts
+- rejects over-consumption
+- updates `user_inventory.csv`
+- creates a `user_inventory_consumption.csv` event
+- does not create intake records
+- does not remove the inventory row
+- does not create a food waste record
+
+Use this when the user says they used, drank, ate, cooked with, or finished a tracked inventory item but the event should not be attached to a meal.
+
+#### `add_intake_item_from_inventory`
+
+Creates a child intake item from inventory, reduces inventory, and records a linked consumption event.
+
+Expected behaviour:
+
+- requires an existing parent `intake_id`
+- requires an existing inventory `stock_id`
+- copies food item identity fields from inventory
+- records `quantity_used`, `unit`, and `servings_used` on the child intake item
+- updates `user_inventory.csv`
+- appends a linked `user_inventory_consumption.csv` record
+- links the consumption record to the created `intake_item_id`
+- does not create the parent meal entry
+- does not modify parent meal-level nutrition totals
+- does not remove the inventory row
+- does not create a food waste record
+
+Use this when the user ate or used a known inventory item as part of an existing meal or eating event.
 
 ---
 
@@ -511,6 +647,7 @@ Recommended:
 inv_001
 intake_001
 intake_item_001
+consumption_001
 waste_001
 ```
 
@@ -571,66 +708,61 @@ pytest -q
 Useful focused tests:
 
 ```powershell
-pytest tests/test_v1_1_write_foundation.py -q
+pytest tests/test_inventory_consumption.py -q
 pytest tests/test_intake_edit_delete_service.py -q
 pytest tests/test_search_intake_service.py -q
 pytest tests/test_mcp_tool_registration.py -q
+pytest tests/test_mcp_resource_registration.py -q
 ```
 
-Version 1.2 was validated with:
+Version 1.3 was validated with:
 
-- service-layer tests for intake editing and removal
-- service-layer tests for `search_intake`
+- service-layer tests for controlled inventory consumption
+- service-layer tests for linked intake/inventory consumption
+- tests for the inventory consumption event log
+- data-file schema tests
+- resource payload tests
 - MCP tool registration checks
+- MCP resource registration checks
 - MCP Inspector manual testing
-
-Curl-based Streamable HTTP testing was deferred for Version 1.2. The core Version 1.2 behaviour was validated through pytest and MCP Inspector. Curl examples can be added later for HTTP documentation completeness.
-
-See:
-
-```text
-docs/mcp_testing_guide.md
-docs/command_reference.md
-docs/version_1_2_completion_checklist.md
-```
+- curl/manual HTTP testing, where applicable
 
 ---
 
 ## Documentation Map
 
-Recommended documentation files for Version 1.2:
+Recommended documentation files for Version 1.3:
 
 ```text
 README.md
 docs/project_roadmap.md
-docs/version_1_2_completion_checklist.md
-docs/mcp_testing_guide.md
+docs/version_1_3_completion_checklist.md
+docs/mcp_testing_guide_v1_3.md
 docs/command_reference.md
-docs/development_journal_v1_2.md
+docs/development_journal_v1_3.md
 docs/future_version_plans.md
 ```
 
 ---
 
-## Final Version 1.2 Definition
+## Final Version 1.3 Definition
 
-Version 1.2 is complete when:
+Version 1.3 is complete when:
 
-- `search_intake` can locate parent intake entries and child intake items
-- `search_intake` returns parent-child relationship context
-- parent results include `child_item_count`
-- parent results include `can_remove_entry`
-- child item results include parent meal context
-- `update_intake_entry` updates only supplied parent fields
-- `update_intake_item` updates only supplied child fields
-- `remove_intake_item` removes one child item safely
-- `remove_intake_entry` blocks removal when child items still exist
-- parent intake entries cannot be removed while child items remain
+- `consume_inventory_item` reduces inventory safely
+- `consume_inventory_item` records an inventory consumption event
+- `add_intake_item_from_inventory` creates an intake item and reduces inventory
+- linked consumption events include `intake_id` and `intake_item_id`
+- intake items store `quantity_used`, `unit`, and `servings_used`
+- inventory uses canonical stock statuses
+- ordinary `add_intake_item` does not deduct inventory
+- ordinary `add_intake_item` does not create consumption records
+- consumption does not create food waste records
+- over-consumption is rejected
+- invalid stock IDs are rejected
+- invalid parent intake IDs are rejected
 - service-layer tests pass
 - MCP tool registration tests pass
-- MCP Inspector can call the Version 1.2 tools
-- invalid input is rejected clearly
-- intake does not automatically deduct inventory
-- cascade deletion is intentionally deferred
-- curl testing is noted as deferred rather than blocking completion
-- documentation clearly explains the Version 1.2 scope boundary
+- MCP resource registration tests pass
+- MCP Inspector can call the Version 1.3 tools
+- documentation clearly explains the Version 1.3 scope boundary
