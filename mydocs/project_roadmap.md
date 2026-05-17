@@ -4,11 +4,12 @@
 
 This roadmap documents the planned progression of the Grocery Assistant MCP project from a read-only MCP server into a safe write-capable assistant and eventually a more intelligent grocery planning system.
 
-The project is built around three core areas:
+The project is built around four core areas:
 
 ```text
 Inventory = what the user has, had, or wants to remember for planning
 Intake = what the user ate
+Inventory consumption = why tracked inventory quantities changed
 Waste = food that was discarded, spoiled, expired, unused, or otherwise wasted
 ```
 
@@ -27,7 +28,7 @@ Version 1.2:
 Relationship-safe intake search, editing, and cleanup.
 
 Version 1.3:
-Controlled inventory consumption tools.
+Controlled inventory consumption tools and consumption event logging.
 
 Version 1.4:
 Batch meal logging and transaction-like workflows.
@@ -81,17 +82,6 @@ add_intake_item
 food waste resources
 ```
 
-## Deferred
-
-```text
-automatic inventory deduction
-consume_inventory_item
-add_meal_with_items
-intake edit/delete tools
-shopping automation
-advanced waste analysis
-```
-
 ## Key Decisions
 
 - Intake logging does not automatically reduce inventory.
@@ -107,7 +97,7 @@ advanced waste analysis
 
 ## Status
 
-Implemented / finalising documentation.
+Complete.
 
 ## Goal
 
@@ -147,40 +137,79 @@ Version 1.2 avoids cascade deletion. Parent intake entries cannot be removed whi
 
 This is intentionally conservative. It prevents orphaned records and avoids accidental loss of ingredient/component data.
 
-`search_intake` was added because broad read tools such as `get_recent_intake` and `get_daily_intake_summary` are useful for review but not precise enough for edit/delete workflows. `search_intake` helps identify exact `intake_id` and `intake_item_id` values before changes are made.
-
-## Deferred
-
-```text
-automatic inventory deduction
-batch meal logging
-automatic intake parsing
-cascade delete behaviour
-shopping list generation
-meal suggestions
-restock suggestions
-waste pattern analysis
-```
-
 ---
 
 # Version 1.3 — Controlled Inventory Consumption
 
+## Status
+
+Implemented / finalising manual validation and documentation.
+
 ## Goal
 
-Add explicit tools for reducing inventory.
+Add explicit tools for reducing inventory and recording consumption events.
 
-## Possible Tools
+## Included
 
 ```text
 consume_inventory_item
-adjust_inventory_quantity
-mark_inventory_used_up
+add_intake_item_from_inventory
+user_inventory_consumption.csv
+grocery://inventory-consumption
+quantity_used and unit on intake items
+canonical stock_status vocabulary
+service-layer tests
+MCP Inspector validation
 ```
 
-## Key Rule
+## Main Workflows
 
-Inventory consumption should be separate from intake logging until the relationship is safe and well tested.
+Inventory-only consumption:
+
+```text
+search_inventory
+    ↓
+consume_inventory_item
+    ↓
+inventory is updated
+    ↓
+consumption event is recorded
+```
+
+Intake-linked consumption:
+
+```text
+add_intake_entry
+    ↓
+add_intake_item_from_inventory
+    ↓
+child intake item is created
+    ↓
+inventory is updated
+    ↓
+linked consumption event is recorded
+```
+
+## Key Decisions
+
+- Ordinary `add_intake_item` does not automatically deduct inventory.
+- Consumption does not create food waste records.
+- Depleted inventory remains active with `stock_status="out"`.
+- Consumption events are recorded separately from intake rows.
+- Intake items now store `quantity_used`, `unit`, and `servings_used`.
+
+## Deferred
+
+```text
+automatic consumption reversal
+adjust consumption event
+batch meal logging
+recipe-level inventory consumption
+shopping list generation
+meal planning intelligence
+restock suggestions
+waste pattern analysis
+```
 
 ---
 
@@ -190,16 +219,25 @@ Inventory consumption should be separate from intake logging until the relations
 
 Support higher-level meal creation workflows.
 
-## Possible Tools
+Possible tools:
 
 ```text
 add_meal_with_items
 add_intake_entry_with_items
+add_meal_with_inventory_items
 ```
 
 ## Risk
 
-This version introduces multi-file writes. The project will need a clear strategy for validation, partial write prevention, and cleanup.
+This version introduces more complex multi-file writes. The project will need a clear strategy for:
+
+- validating all data before writing
+- preventing partial writes
+- handling rollback or cleanup
+- returning clear error messages
+- avoiding accidental inventory deduction
+
+Version 1.3 prepares for this by adding inventory consumption event logging and best-effort related CSV save behaviour.
 
 ---
 
@@ -207,18 +245,22 @@ This version introduces multi-file writes. The project will need a clear strateg
 
 ## Goal
 
-Use inventory, intake, and waste records for smarter recommendations.
+Use inventory, intake, consumption, and waste records for smarter recommendations.
 
-## Possible Capabilities
+Possible capabilities:
 
 ```text
 suggest_restock_items
 suggest_meals_from_inventory
 suggest_use_soon_items
 review_waste_patterns
+review_consumption_patterns
 review_intake_patterns
 create_shopping_candidates
+summarise_grocery_state
 ```
+
+Planning intelligence should begin as read-only analysis and prompts before becoming write-heavy automation.
 
 ---
 
@@ -236,6 +278,10 @@ MCP tools should describe inputs and call service functions. They should not dup
 
 Generic helper files should contain reusable validation and CSV helpers. Domain rules should stay in the service layer.
 
+## Separate State from Events
+
+Inventory is current state. Consumption and waste are events. Intake is eating history.
+
 ## Use Consistent IDs
 
 Recommended ID style:
@@ -244,6 +290,7 @@ Recommended ID style:
 inv_001
 intake_001
 intake_item_001
+consumption_001
 waste_001
 ```
 

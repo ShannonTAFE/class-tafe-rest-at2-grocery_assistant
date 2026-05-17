@@ -17,7 +17,6 @@ from grocery_assistant_mcp.core.grocery_service import (
     list_food_waste_items,
     find_inventory_item,
     get_daily_intake_summary,
-    get_recent_intake,
     add_inventory_item,
     update_inventory_item,
     remove_inventory_item,
@@ -28,15 +27,18 @@ from grocery_assistant_mcp.core.grocery_service import (
 def temp_inventory_and_waste_csv(tmp_path, monkeypatch):
     temp_inventory = tmp_path / "user_inventory.csv"
     temp_waste = tmp_path / "user_food_waste.csv"
+    temp_consumption = tmp_path / "user_inventory_consumption.csv"
 
-    empty_inventory = pd.DataFrame(columns=grocery_service.INVENTORY_COLUMNS)
-    empty_inventory.to_csv(temp_inventory, index=False)
-
-    empty_waste = pd.DataFrame(columns=grocery_service.FOOD_WASTE_COLUMNS)
-    empty_waste.to_csv(temp_waste, index=False)
+    pd.DataFrame(columns=grocery_service.INVENTORY_COLUMNS).to_csv(temp_inventory, index=False)
+    pd.DataFrame(columns=grocery_service.FOOD_WASTE_COLUMNS).to_csv(temp_waste, index=False)
+    pd.DataFrame(columns=grocery_service.INVENTORY_CONSUMPTION_COLUMNS).to_csv(
+        temp_consumption,
+        index=False,
+    )
 
     monkeypatch.setattr(grocery_service, "INVENTORY_PATH", temp_inventory)
     monkeypatch.setattr(grocery_service, "FOOD_WASTE_PATH", temp_waste)
+    monkeypatch.setattr(grocery_service, "INVENTORY_CONSUMPTION_PATH", temp_consumption)
 
     return temp_inventory, temp_waste
 
@@ -51,7 +53,7 @@ def temp_inventory_csv(temp_inventory_and_waste_csv):
 def test_read_csv_file_returns_dataframe_for_existing_file(tmp_path):
     csv_path = tmp_path / "sample.csv"
     csv_path.write_text(
-        "food_item,category,stock_status\nRice,Grains,ok\nLentils,Legumes,low\n",
+        "food_item,category,stock_status\nRice,Grains,in_stock\nLentils,Legumes,low\n",
         encoding="utf-8",
     )
 
@@ -64,30 +66,25 @@ def test_read_csv_file_returns_dataframe_for_existing_file(tmp_path):
 
 def test_read_csv_file_returns_empty_dataframe_for_missing_file(tmp_path):
     missing_path = tmp_path / "missing.csv"
-
     df = read_csv_file(missing_path)
-
     assert isinstance(df, pd.DataFrame)
     assert df.empty
 
 
 def test_read_inventory_returns_dataframe():
     df = read_inventory()
-
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
 
 
 def test_read_intake_history_returns_dataframe():
     df = read_intake_history()
-
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
 
 
 def test_read_intake_items_returns_dataframe():
     df = read_intake_items()
-
     assert isinstance(df, pd.DataFrame)
     assert not df.empty
 
@@ -101,7 +98,6 @@ def test_df_to_records_converts_dataframe_to_list_of_dicts():
     )
 
     records = df_to_records(df)
-
     assert isinstance(records, list)
     assert len(records) == 2
     assert records[0]["food_item"] == "Rice"
@@ -109,44 +105,30 @@ def test_df_to_records_converts_dataframe_to_list_of_dicts():
 
 
 def test_df_to_records_returns_empty_list_for_empty_dataframe():
-    df = pd.DataFrame()
-
-    records = df_to_records(df)
-
-    assert records == []
+    assert df_to_records(pd.DataFrame()) == []
 
 
 def test_df_to_records_replaces_nan_with_empty_string():
-    df = pd.DataFrame(
-        [
-            {"food_item": "Rice", "notes": None},
-        ]
-    )
-
+    df = pd.DataFrame([{"food_item": "Rice", "notes": None}])
     records = df_to_records(df)
-
     assert records[0]["notes"] == ""
 
 
 def test_to_json_returns_valid_json_string():
     data = [{"food_item": "Rice", "category": "Grains"}]
-
     result = to_json(data)
     parsed = json.loads(result)
-
     assert isinstance(result, str)
     assert parsed[0]["food_item"] == "Rice"
 
 
 def test_list_inventory_items_returns_list():
     items = list_inventory_items()
-
     assert isinstance(items, list)
 
 
 def test_list_inventory_items_can_filter_by_category():
     items = list_inventory_items(category="protein")
-
     assert isinstance(items, list)
 
     for item in items:
@@ -155,10 +137,9 @@ def test_list_inventory_items_can_filter_by_category():
 
 def test_list_inventory_items_can_filter_low_stock_only():
     items = list_inventory_items(low_stock_only=True)
-
     assert isinstance(items, list)
 
-    allowed_statuses = {"low", "very low", "empty", "out"}
+    allowed_statuses = {"low", "very_low", "out"}
 
     for item in items:
         assert item.get("stock_status", "").lower() in allowed_statuses
@@ -166,7 +147,6 @@ def test_list_inventory_items_can_filter_low_stock_only():
 
 def test_find_inventory_item_returns_list():
     results = find_inventory_item("rice")
-
     assert isinstance(results, list)
 
 
@@ -185,7 +165,6 @@ def test_find_inventory_item_results_contain_search_term_when_found():
 
 def test_get_daily_intake_summary_returns_expected_structure():
     summary = get_daily_intake_summary("2026-01-01")
-
     assert isinstance(summary, dict)
     assert "date" in summary
     assert "meal_count" in summary
@@ -209,11 +188,11 @@ def test_get_daily_intake_summary_has_numeric_nutrition_totals():
     }
 
     totals = summary["nutrition_totals"]
-
     assert set(totals.keys()) == expected_columns
 
     for value in totals.values():
         assert isinstance(value, float)
+
 
 def test_update_inventory_item_updates_quantity(temp_inventory_csv):
     created = add_inventory_item(
@@ -224,7 +203,7 @@ def test_update_inventory_item_updates_quantity(temp_inventory_csv):
         quantity=1,
         unit="bag",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-12-01",
         notes="Jasmine rice",
     )
@@ -239,8 +218,9 @@ def test_update_inventory_item_updates_quantity(temp_inventory_csv):
     assert updated["item"]["food_item"] == "Rice"
     assert updated["item"]["quantity"] == 2
     assert updated["item"]["brand"] == "SunRice"
-    assert updated["item"]["stock_status"] == "ok"
-    
+    assert updated["item"]["stock_status"] == "in_stock"
+
+
 def test_update_inventory_item_updates_multiple_fields(temp_inventory_csv):
     created = add_inventory_item(
         food_item="Greek yoghurt",
@@ -250,7 +230,7 @@ def test_update_inventory_item_updates_multiple_fields(temp_inventory_csv):
         quantity=1,
         unit="tub",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-05-20",
         notes="Plain yoghurt",
     )
@@ -269,18 +249,16 @@ def test_update_inventory_item_updates_multiple_fields(temp_inventory_csv):
     assert updated["item"]["servings_remaining"] == 6
     assert updated["item"]["stock_status"] == "low"
     assert updated["item"]["notes"] == "Bought another tub"
-
     assert updated["item"]["food_item"] == "Greek yoghurt"
     assert updated["item"]["brand"] == "Chobani"
     assert updated["item"]["category"] == "dairy"
-    assert updated["item"]["location"] == "fridge" 
+    assert updated["item"]["location"] == "fridge"
+
 
 def test_update_inventory_item_unknown_stock_id_raises_error(temp_inventory_csv):
     with pytest.raises(ValueError, match="No inventory item found"):
-        update_inventory_item(
-            stock_id="inv_missing",
-            quantity=2,
-        )
+        update_inventory_item(stock_id="inv_missing", quantity=2)
+
 
 def test_update_inventory_item_requires_at_least_one_update_field(temp_inventory_csv):
     created = add_inventory_item(
@@ -291,15 +269,14 @@ def test_update_inventory_item_requires_at_least_one_update_field(temp_inventory
         quantity=1,
         unit="bottle",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-05-18",
         notes="Full cream",
     )
 
     with pytest.raises(ValueError, match="At least one field"):
-        update_inventory_item(
-            stock_id=created["item"]["stock_id"],
-        )
+        update_inventory_item(stock_id=created["item"]["stock_id"])
+
 
 def test_update_inventory_item_negative_quantity_raises_error(temp_inventory_csv):
     created = add_inventory_item(
@@ -310,16 +287,14 @@ def test_update_inventory_item_negative_quantity_raises_error(temp_inventory_csv
         quantity=1,
         unit="packet",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-12-01",
         notes="Spaghetti",
     )
 
     with pytest.raises(ValueError):
-        update_inventory_item(
-            stock_id=created["item"]["stock_id"],
-            quantity=-1,
-        )
+        update_inventory_item(stock_id=created["item"]["stock_id"], quantity=-1)
+
 
 def test_update_inventory_item_can_clear_optional_text_field(temp_inventory_csv):
     created = add_inventory_item(
@@ -330,7 +305,7 @@ def test_update_inventory_item_can_clear_optional_text_field(temp_inventory_csv)
         quantity=1,
         unit="loaf",
         servings_remaining=8,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-05-19",
         notes="Wholemeal",
     )
@@ -345,6 +320,7 @@ def test_update_inventory_item_can_clear_optional_text_field(temp_inventory_csv)
     assert updated["item"]["brand"] == ""
     assert updated["item"]["notes"] == ""
 
+
 def test_remove_inventory_item_used_up_creates_no_waste_record(
     temp_inventory_and_waste_csv,
 ):
@@ -356,7 +332,7 @@ def test_remove_inventory_item_used_up_creates_no_waste_record(
         quantity=1,
         unit="bag",
         servings_remaining=5,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-12-01",
         notes="Jasmine rice",
     )
@@ -371,16 +347,11 @@ def test_remove_inventory_item_used_up_creates_no_waste_record(
     assert result["waste_record_created"] is False
     assert result["waste_record"] is None
     assert result["removed_item"]["food_item"] == "Rice"
+    assert list_inventory_items() == []
+    assert list_food_waste_items() == []
 
-    inventory_items = list_inventory_items()
-    assert inventory_items == []
 
-    waste_items = list_food_waste_items()
-    assert waste_items == []
-
-def test_remove_inventory_item_expired_creates_waste_record(
-    temp_inventory_and_waste_csv,
-):
+def test_remove_inventory_item_expired_creates_waste_record(temp_inventory_and_waste_csv):
     created = add_inventory_item(
         food_item="Greek yoghurt",
         brand="Chobani",
@@ -389,7 +360,7 @@ def test_remove_inventory_item_expired_creates_waste_record(
         quantity=1000,
         unit="g",
         servings_remaining=10,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-05-20",
         notes="Plain yoghurt",
     )
@@ -408,7 +379,6 @@ def test_remove_inventory_item_expired_creates_waste_record(
     assert result["waste_record_created"] is True
 
     waste_record = result["waste_record"]
-
     assert waste_record["food_item"] == "Greek yoghurt"
     assert waste_record["waste_type"] == "expired"
     assert waste_record["quantity_wasted"] == 150
@@ -416,13 +386,12 @@ def test_remove_inventory_item_expired_creates_waste_record(
     assert waste_record["estimated_quantity_consumed"] == 850
     assert waste_record["estimated_servings_consumed"] == 8.5
     assert waste_record["tracking_confidence"] == "medium"
-
-    inventory_items = list_inventory_items()
-    assert inventory_items == []
+    assert list_inventory_items() == []
 
     waste_items = list_food_waste_items()
     assert len(waste_items) == 1
     assert waste_items[0]["waste_type"] == "expired"
+
 
 def test_remove_inventory_item_invalid_removal_type_raises_error(
     temp_inventory_and_waste_csv,
@@ -435,7 +404,7 @@ def test_remove_inventory_item_invalid_removal_type_raises_error(
         quantity=1,
         unit="bottle",
         servings_remaining=4,
-        stock_status="ok",
+        stock_status="in_stock",
         expiry_date="2026-05-20",
         notes="Full cream",
     )
