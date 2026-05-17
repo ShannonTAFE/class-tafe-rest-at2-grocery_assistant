@@ -688,6 +688,398 @@ def get_daily_intake_summary(date: str) -> dict:
         "missing_nutrition_counts": missing_nutrition_counts,
     }
 
+def search_intake(
+    query: str = "",
+    intake_id: str = "",
+    intake_item_id: str = "",
+    date: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    meal_type: str = "",
+    source: str = "",
+    stock_id: str = "",
+    category: str = "",
+    limit: int = 20,
+) -> dict:
+    """
+    Search intake parent entries and child item records.
+
+    This is a Version 1.2 read-only helper for safe editing and cleanup.
+    It helps locate intake_id and intake_item_id values before update/remove
+    tools are called.
+
+    The function searches:
+    - user_intake_history.csv for parent meal/eating-event records
+    - user_intake_items.csv for child ingredient/component records
+
+    It also returns relationship context:
+    - parent entries include child_item_count and can_remove_entry
+    - child items include parent date, time, meal type, and meal name
+    """
+    query = _optional_clean_text(query, "query")
+    intake_id = _optional_clean_text(intake_id, "intake_id")
+    intake_item_id = _optional_clean_text(intake_item_id, "intake_item_id")
+    date = _optional_clean_text(date, "date")
+    date_from = _optional_clean_text(date_from, "date_from")
+    date_to = _optional_clean_text(date_to, "date_to")
+    meal_type = _optional_clean_text(meal_type, "meal_type")
+    source = _optional_clean_text(source, "source")
+    stock_id = _optional_clean_text(stock_id, "stock_id")
+    category = _optional_clean_text(category, "category")
+    limit = _normalise_search_limit(limit)
+
+    if date:
+        validate_required_date(date, "date")
+
+    if date_from:
+        validate_required_date(date_from, "date_from")
+
+    if date_to:
+        validate_required_date(date_to, "date_to")
+
+    if meal_type:
+        meal_type = validate_required_choice(
+            meal_type,
+            VALID_MEAL_TYPES,
+            "meal_type",
+        )
+
+    history_df = read_csv_for_write(
+        INTAKE_HISTORY_PATH,
+        INTAKE_HISTORY_COLUMNS,
+    ).fillna("")
+
+    items_df = read_csv_for_write(
+        INTAKE_ITEMS_PATH,
+        INTAKE_ITEMS_COLUMNS,
+    ).fillna("")
+
+    # Ensure expected columns are string-safe for filtering.
+    for df in [history_df, items_df]:
+        for column in df.columns:
+            df[column] = df[column].fillna("").astype(str)
+
+    # ------------------------------------------------------------------
+    # Build parent context for child rows
+    # ------------------------------------------------------------------
+
+    parent_context_columns = [
+        "intake_id",
+        "date",
+        "time",
+        "meal_type",
+        "meal_name",
+        "source",
+    ]
+
+    existing_parent_context_columns = [
+        column for column in parent_context_columns if column in history_df.columns
+    ]
+
+    if existing_parent_context_columns:
+        parent_context_df = history_df[existing_parent_context_columns].copy()
+    else:
+        parent_context_df = pd.DataFrame(columns=parent_context_columns)
+
+    parent_context_df = parent_context_df.rename(
+        columns={
+            "date": "parent_date",
+            "time": "parent_time",
+            "meal_type": "parent_meal_type",
+            "meal_name": "parent_meal_name",
+            "source": "parent_source",
+        }
+    )
+
+    if not items_df.empty and "intake_id" in items_df.columns:
+        items_with_parent_df = items_df.merge(
+            parent_context_df,
+            how="left",
+            on="intake_id",
+        ).fillna("")
+    else:
+        items_with_parent_df = items_df.copy()
+
+        for column in [
+            "parent_date",
+            "parent_time",
+            "parent_meal_type",
+            "parent_meal_name",
+            "parent_source",
+        ]:
+            items_with_parent_df[column] = ""
+
+    # ------------------------------------------------------------------
+    # Parent entry filtering
+    # ------------------------------------------------------------------
+
+    if history_df.empty:
+        entry_mask = pd.Series([], dtype=bool)
+    else:
+        entry_mask = pd.Series([True] * len(history_df), index=history_df.index)
+
+    if intake_id:
+        entry_mask = entry_mask & _exact_text_mask(history_df, "intake_id", intake_id)
+
+    if query:
+        entry_query_columns = [
+            "intake_id",
+            "meal_name",
+            "meal_description",
+            "source",
+            "amount_eaten",
+            "portion_confidence",
+            "nutrition_confidence",
+            "was_finished",
+            "leftovers_created",
+            "hunger_before",
+            "hunger_after",
+            "notes",
+        ]
+        entry_mask = entry_mask & _contains_query_mask(
+            history_df,
+            entry_query_columns,
+            query,
+        )
+
+    if date:
+        entry_mask = entry_mask & _exact_text_mask(history_df, "date", date)
+
+    if date_from and "date" in history_df.columns:
+        entry_mask = entry_mask & (history_df["date"].astype(str) >= date_from)
+
+    if date_to and "date" in history_df.columns:
+        entry_mask = entry_mask & (history_df["date"].astype(str) <= date_to)
+
+    if meal_type:
+        entry_mask = entry_mask & _exact_text_mask(history_df, "meal_type", meal_type)
+
+    if source:
+        entry_mask = entry_mask & _exact_text_mask(history_df, "source", source)
+
+    matching_entries_df = history_df[entry_mask].copy()
+
+    # ------------------------------------------------------------------
+    # Child item filtering
+    # ------------------------------------------------------------------
+
+    if items_with_parent_df.empty:
+        item_mask = pd.Series([], dtype=bool)
+    else:
+        item_mask = pd.Series(
+            [True] * len(items_with_parent_df),
+            index=items_with_parent_df.index,
+        )
+
+    if intake_id:
+        item_mask = item_mask & _exact_text_mask(
+            items_with_parent_df,
+            "intake_id",
+            intake_id,
+        )
+
+    if intake_item_id:
+        item_mask = item_mask & _exact_text_mask(
+            items_with_parent_df,
+            "intake_item_id",
+            intake_item_id,
+        )
+
+    if query:
+        item_query_columns = [
+            "intake_item_id",
+            "intake_id",
+            "food_item",
+            "brand",
+            "category",
+            "source",
+            "stock_id",
+            "amount_eaten",
+            "nutrition_confidence",
+            "notes",
+        ]   
+        item_mask = item_mask & _contains_query_mask(
+            items_with_parent_df,
+            item_query_columns,
+            query,
+        )
+
+    if date:
+        item_mask = item_mask & _exact_text_mask(
+            items_with_parent_df,
+            "parent_date",
+            date,
+        )
+
+    if date_from and "parent_date" in items_with_parent_df.columns:
+        item_mask = item_mask & (
+            items_with_parent_df["parent_date"].astype(str) >= date_from
+        )
+
+    if date_to and "parent_date" in items_with_parent_df.columns:
+        item_mask = item_mask & (
+            items_with_parent_df["parent_date"].astype(str) <= date_to
+        )
+
+    if meal_type:
+        item_mask = item_mask & _exact_text_mask(
+            items_with_parent_df,
+            "parent_meal_type",
+            meal_type,
+        )
+
+    if source:
+        child_source_mask = _exact_text_mask(items_with_parent_df, "source", source)
+        parent_source_mask = _exact_text_mask(
+            items_with_parent_df,
+            "parent_source",
+            source,
+        )
+        item_mask = item_mask & (child_source_mask | parent_source_mask)
+
+    if stock_id:
+        item_mask = item_mask & _exact_text_mask(items_with_parent_df, "stock_id", stock_id)
+
+    if category:
+        item_mask = item_mask & _exact_text_mask(items_with_parent_df, "category", category)
+
+    matching_items_df = items_with_parent_df[item_mask].copy()
+
+    # ------------------------------------------------------------------
+    # If searching by intake_item_id, include its parent entry for context.
+    # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Include parent entries for matched child item rows.
+    #
+    # This supports child-side searches such as:
+    # - stock_id="inv_001"
+    # - category="protein"
+    # - intake_item_id="intake_item_001"
+    # - query="beef mince"
+    #
+    # If a child item matches, its parent meal should also be returned so
+    # the user can safely inspect the relationship before editing/removing.
+    # ------------------------------------------------------------------
+
+    filters_used = any(
+        [
+            query,
+            intake_id,
+            intake_item_id,
+            date,
+            date_from,
+            date_to,
+            meal_type,
+            source,
+            stock_id,
+            category,
+        ]
+    )
+
+    parent_filters_used = any(
+        [
+            query,
+            intake_id,
+            date,
+            date_from,
+            date_to,
+            meal_type,
+            source,
+        ]
+    )
+
+    if not matching_items_df.empty and "intake_id" in matching_items_df.columns:
+        child_parent_ids = set(
+            matching_items_df["intake_id"].fillna("").astype(str).str.strip()
+        )
+
+        child_parent_rows_df = history_df[
+            history_df["intake_id"].fillna("").astype(str).str.strip().isin(
+                child_parent_ids
+            )
+        ].copy()
+    else:
+        child_parent_rows_df = pd.DataFrame(columns=history_df.columns)
+
+    if filters_used and not child_parent_rows_df.empty:
+        if parent_filters_used:
+            matching_entries_df = pd.concat(
+                [matching_entries_df, child_parent_rows_df],
+                ignore_index=True,
+            ).drop_duplicates(subset=["intake_id"])
+        else:
+            matching_entries_df = child_parent_rows_df.copy()
+
+    if filters_used and not parent_filters_used and child_parent_rows_df.empty:
+        matching_entries_df = history_df.iloc[0:0].copy()
+
+    # ------------------------------------------------------------------
+    # Add relationship metadata to parent entries.
+    # ------------------------------------------------------------------
+
+    if not items_df.empty and "intake_id" in items_df.columns:
+        child_counts = items_df.groupby("intake_id").size().to_dict()
+    else:
+        child_counts = {}
+
+    if not matching_entries_df.empty:
+        matching_entries_df["record_type"] = "intake_entry"
+        matching_entries_df["child_item_count"] = matching_entries_df["intake_id"].map(
+            child_counts
+        ).fillna(0).astype(int)
+        matching_entries_df["can_remove_entry"] = (
+            matching_entries_df["child_item_count"] == 0
+        )
+
+    if not matching_items_df.empty:
+        matching_items_df["record_type"] = "intake_item"
+
+    # ------------------------------------------------------------------
+    # Sort most recent first and limit output.
+    # ------------------------------------------------------------------
+
+    if not matching_entries_df.empty:
+        sort_columns = [
+            column for column in ["date", "time", "intake_id"] if column in matching_entries_df.columns
+        ]
+        matching_entries_df = matching_entries_df.sort_values(
+            by=sort_columns,
+            ascending=False,
+        ).head(limit)
+
+    if not matching_items_df.empty:
+        sort_columns = [
+            column
+            for column in ["parent_date", "parent_time", "intake_item_id"]
+            if column in matching_items_df.columns
+        ]
+        matching_items_df = matching_items_df.sort_values(
+            by=sort_columns,
+            ascending=False,
+        ).head(limit)
+
+    return {
+        "success": True,
+        "criteria": {
+            "query": query,
+            "intake_id": intake_id,
+            "intake_item_id": intake_item_id,
+            "date": date,
+            "date_from": date_from,
+            "date_to": date_to,
+            "meal_type": meal_type,
+            "source": source,
+            "stock_id": stock_id,
+            "category": category,
+            "limit": limit,
+        },
+        "entry_count": int(len(matching_entries_df)),
+        "item_count": int(len(matching_items_df)),
+        "matching_entries": df_to_records(matching_entries_df),
+        "matching_items": df_to_records(matching_items_df),
+    }
+
 def search_inventory(
     query: str = "",
     category: str = "",
@@ -793,6 +1185,79 @@ def get_recent_intake(
 
     return df_to_records(df)
 
+def _normalise_search_limit(limit: int, default: int = 20, maximum: int = 100) -> int:
+    """
+    Normalise a user-provided search limit.
+
+    The cap prevents very large MCP responses while still allowing broader
+    inspection when needed.
+    """
+    if limit is None:
+        return default
+
+    try:
+        limit_value = int(limit)
+    except (TypeError, ValueError):
+        raise ValueError("limit must be a positive integer.")
+
+    if limit_value < 1:
+        raise ValueError("limit must be at least 1.")
+
+    return min(limit_value, maximum)
+
+
+def _optional_clean_text(value: str | None, field_name: str) -> str:
+    """
+    Clean optional text search/filter values.
+    """
+    if value is None:
+        return ""
+
+    return str(value).strip()
+
+
+def _contains_query_mask(df: pd.DataFrame, columns: list[str], query: str) -> pd.Series:
+    """
+    Return a boolean mask where any selected column contains the query.
+
+    Matching is case-insensitive and literal, not regex-based.
+    """
+    if df.empty:
+        return pd.Series([], dtype=bool)
+
+    if not query:
+        return pd.Series([True] * len(df), index=df.index)
+
+    query = query.lower().strip()
+    existing_columns = [column for column in columns if column in df.columns]
+
+    if not existing_columns:
+        return pd.Series([False] * len(df), index=df.index)
+
+    mask = pd.Series([False] * len(df), index=df.index)
+
+    for column in existing_columns:
+        column_text = df[column].fillna("").astype(str).str.lower()
+        mask = mask | column_text.str.contains(query, regex=False, na=False)
+
+    return mask
+
+
+def _exact_text_mask(df: pd.DataFrame, column: str, value: str) -> pd.Series:
+    """
+    Return a case-insensitive exact-match mask for a text column.
+    """
+    if df.empty:
+        return pd.Series([], dtype=bool)
+
+    if not value:
+        return pd.Series([True] * len(df), index=df.index)
+
+    if column not in df.columns:
+        return pd.Series([False] * len(df), index=df.index)
+
+    return df[column].fillna("").astype(str).str.strip().str.lower() == value.lower()
+    
 # ---------------------------------------------------------------------
 # Intake write service functions
 # ---------------------------------------------------------------------
@@ -1028,6 +1493,178 @@ def add_intake_entry(
     }
 
 
+def update_intake_entry(
+    intake_id: str,
+    date: str | None = None,
+    time: str | None = None,
+    meal_type: str | None = None,
+    meal_name: str | None = None,
+    meal_description: str | None = None,
+    source: str | None = None,
+    amount_eaten: str | None = None,
+    portion_confidence: str | None = None,
+    total_calories_estimate: float | None = None,
+    total_protein_g_estimate: float | None = None,
+    total_carbs_g_estimate: float | None = None,
+    total_fat_g_estimate: float | None = None,
+    total_fibre_g_estimate: float | None = None,
+    total_sugar_g_estimate: float | None = None,
+    total_sodium_mg_estimate: float | None = None,
+    nutrition_confidence: str | None = None,
+    was_finished: str | None = None,
+    leftovers_created: str | None = None,
+    hunger_before: str | None = None,
+    hunger_after: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """
+    Update an existing parent intake entry.
+
+    Fields left as None are not changed. String fields may be intentionally
+    cleared by passing an empty string, except required fields such as date
+    and meal_name.
+    """
+    intake_id = clean_text(intake_id, "intake_id", required=True)
+
+    updates = {
+        "date": date,
+        "time": time,
+        "meal_type": meal_type,
+        "meal_name": meal_name,
+        "meal_description": meal_description,
+        "source": source,
+        "amount_eaten": amount_eaten,
+        "portion_confidence": portion_confidence,
+        "total_calories_estimate": total_calories_estimate,
+        "total_protein_g_estimate": total_protein_g_estimate,
+        "total_carbs_g_estimate": total_carbs_g_estimate,
+        "total_fat_g_estimate": total_fat_g_estimate,
+        "total_fibre_g_estimate": total_fibre_g_estimate,
+        "total_sugar_g_estimate": total_sugar_g_estimate,
+        "total_sodium_mg_estimate": total_sodium_mg_estimate,
+        "nutrition_confidence": nutrition_confidence,
+        "was_finished": was_finished,
+        "leftovers_created": leftovers_created,
+        "hunger_before": hunger_before,
+        "hunger_after": hunger_after,
+        "notes": notes,
+    }
+
+    updates = {field: value for field, value in updates.items() if value is not None}
+
+    if not updates:
+        raise ValueError("At least one field must be provided to update.")
+
+    text_fields = [
+        "date",
+        "time",
+        "meal_name",
+        "meal_description",
+        "source",
+        "amount_eaten",
+        "hunger_before",
+        "hunger_after",
+        "notes",
+    ]
+
+    for field in text_fields:
+        if field in updates:
+            updates[field] = clean_text(
+                updates[field],
+                field,
+                required=(field in {"date", "meal_name"}),
+            )
+
+    if "date" in updates:
+        validate_required_date(updates["date"], "date")
+
+    if "time" in updates:
+        validate_time_or_blank(updates["time"], "time")
+
+    if "meal_type" in updates:
+        updates["meal_type"] = validate_required_choice(
+            updates["meal_type"],
+            VALID_MEAL_TYPES,
+            "meal_type",
+        )
+
+    if "portion_confidence" in updates:
+        updates["portion_confidence"] = validate_choice_or_blank(
+            updates["portion_confidence"],
+            VALID_CONFIDENCE_LEVELS,
+            "portion_confidence",
+            default="unknown",
+        )
+
+    if "nutrition_confidence" in updates:
+        updates["nutrition_confidence"] = validate_choice_or_blank(
+            updates["nutrition_confidence"],
+            VALID_CONFIDENCE_LEVELS,
+            "nutrition_confidence",
+            default="unknown",
+        )
+
+    if "was_finished" in updates:
+        updates["was_finished"] = validate_choice_or_blank(
+            updates["was_finished"],
+            VALID_FINISHED_STATUSES,
+            "was_finished",
+            default="unknown",
+        )
+
+    if "leftovers_created" in updates:
+        updates["leftovers_created"] = validate_choice_or_blank(
+            updates["leftovers_created"],
+            VALID_YES_NO_UNKNOWN,
+            "leftovers_created",
+            default="unknown",
+        )
+
+    numeric_fields = [
+        "total_calories_estimate",
+        "total_protein_g_estimate",
+        "total_carbs_g_estimate",
+        "total_fat_g_estimate",
+        "total_fibre_g_estimate",
+        "total_sugar_g_estimate",
+        "total_sodium_mg_estimate",
+    ]
+
+    for field in numeric_fields:
+        if field in updates:
+            updates[field] = validate_non_negative_number(updates[field], field)
+
+    df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
+
+    matching_rows = df.index[
+        df["intake_id"].astype(str).str.strip() == intake_id
+    ].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No intake entry found with intake_id: {intake_id}")
+
+    row_index = matching_rows[0]
+
+    for field in numeric_fields:
+        if field in df.columns:
+            df[field] = pd.to_numeric(df[field], errors="coerce").astype("float64")
+
+    for field, value in updates.items():
+        df.at[row_index, field] = value
+
+    backup_path = backup_csv(INTAKE_HISTORY_PATH)
+    save_csv(df, INTAKE_HISTORY_PATH)
+
+    updated_entry = df.loc[row_index].fillna("").to_dict()
+
+    return {
+        "success": True,
+        "message": "Intake entry updated.",
+        "item": updated_entry,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+
 def add_intake_item(
     intake_id: str,
     food_item: str,
@@ -1121,6 +1758,216 @@ def add_intake_item(
         "backup_created": str(backup_path) if backup_path else None,
     }
 
+
+def update_intake_item(
+    intake_item_id: str,
+    intake_id: str | None = None,
+    food_item: str | None = None,
+    brand: str | None = None,
+    category: str | None = None,
+    source: str | None = None,
+    stock_id: str | None = None,
+    amount_eaten: str | None = None,
+    servings_used: float | None = None,
+    calories_estimate: float | None = None,
+    protein_g_estimate: float | None = None,
+    carbs_g_estimate: float | None = None,
+    fat_g_estimate: float | None = None,
+    fibre_g_estimate: float | None = None,
+    sugar_g_estimate: float | None = None,
+    sodium_mg_estimate: float | None = None,
+    nutrition_confidence: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """
+    Update an existing child intake item.
+
+    Fields left as None are not changed. If intake_id is changed, the new
+    parent intake entry must already exist. If stock_id is changed and not
+    blank, the stock_id must already exist.
+    """
+    intake_item_id = clean_text(intake_item_id, "intake_item_id", required=True)
+
+    updates = {
+        "intake_id": intake_id,
+        "food_item": food_item,
+        "brand": brand,
+        "category": category,
+        "source": source,
+        "stock_id": stock_id,
+        "amount_eaten": amount_eaten,
+        "servings_used": servings_used,
+        "calories_estimate": calories_estimate,
+        "protein_g_estimate": protein_g_estimate,
+        "carbs_g_estimate": carbs_g_estimate,
+        "fat_g_estimate": fat_g_estimate,
+        "fibre_g_estimate": fibre_g_estimate,
+        "sugar_g_estimate": sugar_g_estimate,
+        "sodium_mg_estimate": sodium_mg_estimate,
+        "nutrition_confidence": nutrition_confidence,
+        "notes": notes,
+    }
+
+    updates = {field: value for field, value in updates.items() if value is not None}
+
+    if not updates:
+        raise ValueError("At least one field must be provided to update.")
+
+    text_fields = [
+        "intake_id",
+        "food_item",
+        "brand",
+        "category",
+        "source",
+        "stock_id",
+        "amount_eaten",
+        "notes",
+    ]
+
+    for field in text_fields:
+        if field in updates:
+            updates[field] = clean_text(
+                updates[field],
+                field,
+                required=(field in {"intake_id", "food_item"}),
+            )
+
+    if "intake_id" in updates:
+        updates["intake_id"] = require_existing_intake_id(updates["intake_id"])
+
+    if "stock_id" in updates and updates["stock_id"]:
+        updates["stock_id"] = require_existing_stock_id(updates["stock_id"])
+
+    if "nutrition_confidence" in updates:
+        updates["nutrition_confidence"] = validate_choice_or_blank(
+            updates["nutrition_confidence"],
+            VALID_CONFIDENCE_LEVELS,
+            "nutrition_confidence",
+            default="unknown",
+        )
+
+    numeric_fields = [
+        "servings_used",
+        "calories_estimate",
+        "protein_g_estimate",
+        "carbs_g_estimate",
+        "fat_g_estimate",
+        "fibre_g_estimate",
+        "sugar_g_estimate",
+        "sodium_mg_estimate",
+    ]
+
+    for field in numeric_fields:
+        if field in updates:
+            updates[field] = validate_non_negative_number(updates[field], field)
+
+    df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
+
+    matching_rows = df.index[
+        df["intake_item_id"].astype(str).str.strip() == intake_item_id
+    ].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No intake item found with intake_item_id: {intake_item_id}")
+
+    row_index = matching_rows[0]
+
+    for field in numeric_fields:
+        if field in df.columns:
+            df[field] = pd.to_numeric(df[field], errors="coerce").astype("float64")
+
+    for field, value in updates.items():
+        df.at[row_index, field] = value
+
+    backup_path = backup_csv(INTAKE_ITEMS_PATH)
+    save_csv(df, INTAKE_ITEMS_PATH)
+
+    updated_item = df.loc[row_index].fillna("").to_dict()
+
+    return {
+        "success": True,
+        "message": "Intake item updated.",
+        "item": updated_item,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+def remove_intake_item(intake_item_id: str) -> dict:
+    """
+    Remove one child intake item from user_intake_items.csv.
+
+    This does not remove the parent intake entry.
+    """
+    intake_item_id = clean_text(intake_item_id, "intake_item_id", required=True)
+
+    df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
+
+    matching_rows = df.index[
+        df["intake_item_id"].astype(str).str.strip() == intake_item_id
+    ].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No intake item found with intake_item_id: {intake_item_id}")
+
+    row_index = matching_rows[0]
+    removed_item = df.loc[row_index].fillna("").to_dict()
+
+    updated_df = df.drop(index=row_index).reset_index(drop=True)
+
+    backup_path = backup_csv(INTAKE_ITEMS_PATH)
+    save_csv(updated_df, INTAKE_ITEMS_PATH)
+
+    return {
+        "success": True,
+        "message": "Intake item removed.",
+        "removed_item": removed_item,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+
+def remove_intake_entry(intake_id: str) -> dict:
+    """
+    Remove a parent intake entry from user_intake_history.csv.
+
+    Version 1.2 uses conservative relationship protection:
+    parent entries cannot be removed while child intake items still exist.
+    Remove child items first with remove_intake_item().
+    """
+    intake_id = clean_text(intake_id, "intake_id", required=True)
+
+    history_df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
+
+    matching_rows = history_df.index[
+        history_df["intake_id"].astype(str).str.strip() == intake_id
+    ].tolist()
+
+    if not matching_rows:
+        raise ValueError(f"No intake entry found with intake_id: {intake_id}")
+
+    child_items = get_intake_items_for_entry(intake_id)
+
+    if child_items:
+        raise ValueError(
+            f"Cannot remove intake entry {intake_id} because it has "
+            f"{len(child_items)} child intake item(s). Remove child items first."
+        )
+
+    row_index = matching_rows[0]
+    removed_entry = history_df.loc[row_index].fillna("").to_dict()
+
+    updated_history_df = history_df.drop(index=row_index).reset_index(drop=True)
+
+    backup_path = backup_csv(INTAKE_HISTORY_PATH)
+    save_csv(updated_history_df, INTAKE_HISTORY_PATH)
+
+    return {
+        "success": True,
+        "message": "Intake entry removed.",
+        "removed_entry": removed_entry,
+        "child_item_count": 0,
+        "backup_created": str(backup_path) if backup_path else None,
+    }
+
+
 def find_possible_inventory_duplicates(
     df: pd.DataFrame,
     food_item: str,
@@ -1168,6 +2015,68 @@ def find_possible_inventory_duplicates(
         mask = mask & (~_safe_text_series(df, "stock_status").isin({"removed"}))
 
     return df_to_records(df[mask])
+
+def intake_item_id_exists(intake_item_id: str) -> bool:
+    """
+    Return True if an intake item record exists for the supplied intake_item_id.
+    """
+    cleaned_id = clean_text(intake_item_id, "intake_item_id", required=True)
+
+    items_df = read_csv_for_write(
+        INTAKE_ITEMS_PATH,
+        INTAKE_ITEMS_COLUMNS,
+    )
+
+    return id_exists(items_df, "intake_item_id", cleaned_id)
+
+
+def require_existing_intake_item_id(intake_item_id: str) -> str:
+    """
+    Validate that an intake_item_id exists in user_intake_items.csv.
+    """
+    items_df = read_csv_for_write(
+        INTAKE_ITEMS_PATH,
+        INTAKE_ITEMS_COLUMNS,
+    )
+
+    return require_existing_id(
+        df=items_df,
+        id_column="intake_item_id",
+        id_value=intake_item_id,
+        entity_name="intake item",
+    )
+
+
+def get_intake_items_for_entry(intake_id: str) -> list[dict]:
+    """
+    Return all child intake item rows for a parent intake entry.
+
+    This supports Version 1.2 relationship-safe editing and removal.
+    """
+    intake_id = require_existing_intake_id(intake_id)
+
+    items_df = read_csv_for_write(
+        INTAKE_ITEMS_PATH,
+        INTAKE_ITEMS_COLUMNS,
+    )
+
+    if items_df.empty or "intake_id" not in items_df.columns:
+        return []
+
+    matching_items = items_df[
+        items_df["intake_id"].fillna("").astype(str).str.strip() == intake_id
+    ].copy()
+
+    return df_to_records(matching_items)
+
+
+def intake_entry_has_items(intake_id: str) -> bool:
+    """
+    Return True if a parent intake entry has child item rows.
+    """
+    return len(get_intake_items_for_entry(intake_id)) > 0
+
+
 
 # ---------------------------------------------------------------------
 # Inventory write service functions

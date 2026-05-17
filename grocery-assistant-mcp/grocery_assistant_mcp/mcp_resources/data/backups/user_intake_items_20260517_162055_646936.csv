@@ -1,2 +1,4 @@
 intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
-intake_item_001,intake_002,beef mince,spud shed,meat,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
+intake_item_001,intake_002,beef mince,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
+intake_item_002,intake_002,tomato,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
+intake_item_003,intake_002,pasta,,,,,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,
