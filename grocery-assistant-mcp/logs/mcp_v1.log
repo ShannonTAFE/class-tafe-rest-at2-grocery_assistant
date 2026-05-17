@@ -445,3 +445,72 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-17 00:34:54,320 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
 2026-05-17 00:35:36,345 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
 2026-05-17 00:35:36,414 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+2026-05-17 13:47:30,943 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 13:50:54,457 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 13:51:25,195 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:51:38,822 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:51:53,890 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:52:07,232 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:52:20,848 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:52:28,333 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:53:20,533 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 13:55:39,025 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 13:55:41,116 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 13:56:10,290 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:07:53,180 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 14:09:46,595 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:10:06,168 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:10:17,893 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:10:22,697 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:10:30,404 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:10:46,613 | WARNING | root | Failed to validate request: Received request before initialization was complete
+2026-05-17 14:11:16,389 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 14:11:19,146 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 14:11:36,097 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:11:51,058 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:12:52,525 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:13:04,820 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:13:13,896 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:13:28,470 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:13:51,969 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:21:41,495 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:22:38,711 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:22:48,464 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 14:51:48,102 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 15:08:37,550 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 15:22:43,391 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 15:40:19,379 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 15:40:21,877 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 15:40:30,477 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 15:44:33,799 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 15:44:41,787 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 15:44:48,853 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 15:45:36,207 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 15:46:55,489 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:05:20,769 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:05:59,646 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:07:18,842 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:07:40,199 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:09:15,103 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:11:03,297 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:13:48,505 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:15:44,081 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:15:59,744 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:16:39,565 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:17:02,813 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:17:11,119 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:18:47,474 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:19:05,199 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:20:35,584 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:20:44,132 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:20:55,639 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:21:00,442 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:21:04,166 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:22:43,510 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:22:55,938 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:28:48,602 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-17 16:28:57,930 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
+2026-05-17 16:29:05,084 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:29:37,723 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:31:06,798 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
+2026-05-17 16:32:37,218 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest

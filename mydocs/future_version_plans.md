@@ -2,44 +2,29 @@
 
 ## Purpose
 
-This file records ideas intentionally deferred beyond Version 1.1.
+This file records ideas intentionally deferred beyond the current Version 1.2 implementation.
 
 The goal is to keep future ideas visible without adding them too early to the safe write foundation.
 
 ---
 
-# Version 1.2 — Relationship Editing and Cleanup
+# Current Completed Stage
 
-Version 1.2 should focus on editing and removing intake records safely.
+## Version 1.2 — Intake Relationship Editing and Cleanup
 
-Possible tools:
+Version 1.2 adds safe intake search, editing, and cleanup tools.
 
-```text
-update_intake_entry
-update_intake_item
-remove_intake_item
-remove_intake_entry
-```
+Completed capabilities:
 
-Main design question:
+- search intake parent and child records
+- update parent intake entries
+- update child intake items
+- remove child intake items
+- remove parent intake entries only when safe
+- block parent removal while child items exist
+- preserve parent-child relationship safety
 
-```text
-If a parent meal is removed, what happens to the child intake items?
-```
-
-Possible strategies:
-
-```text
-Option A: block parent removal if child items exist
-Option B: cascade delete child items
-Option C: mark the meal as removed or cancelled
-```
-
-Recommended first approach:
-
-> Block parent removal if child items exist. Require child items to be removed first.
-
-This is safer for a CSV-based system and prevents accidental data loss.
+Version 1.2 intentionally does not add cascade delete, automatic inventory deduction, batch meal logging, shopping list generation, or planning intelligence.
 
 ---
 
@@ -47,7 +32,7 @@ This is safer for a CSV-based system and prevents accidental data loss.
 
 Version 1.3 should introduce explicit inventory consumption.
 
-Possible tool:
+Possible tools:
 
 ```text
 consume_inventory_item(
@@ -56,6 +41,8 @@ consume_inventory_item(
     servings_used,
     reason
 )
+adjust_inventory_quantity
+mark_inventory_used_up
 ```
 
 This tool should be separate from intake logging at first.
@@ -78,7 +65,7 @@ Later, consumption may be linked to `intake_id` or `intake_item_id`.
 
 Version 1.4 may introduce higher-level meal logging.
 
-Possible tool:
+Possible tools:
 
 ```text
 add_meal_with_items(
@@ -128,6 +115,10 @@ summarise_grocery_state
 
 These should begin as prompts or read-only analysis tools before becoming write-heavy tools.
 
+Important note:
+
+Planning intelligence should use existing resources and tools but should not silently modify CSV files.
+
 ---
 
 # Future Waste Pattern Learning
@@ -172,7 +163,7 @@ To support better advice, future waste records may need context such as:
 - whether the user disliked it
 - whether it was forgotten
 
-This is why Version 1.1 records waste carefully but does not yet attempt advanced waste pattern analysis.
+This is why early versions record waste carefully but do not yet attempt advanced waste pattern analysis.
 
 ---
 

@@ -1,24 +1,24 @@
-# Grocery Assistant MCP — Version 1.1
+# Grocery Assistant MCP — Version 1.2
 
 ## Overview
 
 Grocery Assistant MCP is a local Model Context Protocol server for working with grocery inventory, food intake, and food waste records.
 
-Version 1.1 finalises the first safe write layer of the project. Earlier Version 1 work focused mainly on read-only resources, search tools, summaries, prompts, and MCP testing. Version 1.1 adds controlled write tools for inventory and intake while keeping behaviour explicit, testable, and safe.
+Version 1.2 builds on the Version 1.1 safe write foundation by adding relationship-safe intake search, editing, and cleanup tools. Version 1.1 introduced controlled write behaviour for inventory, intake, and food waste. Version 1.2 focuses specifically on helping users find, inspect, update, and remove intake records without breaking the parent-child relationship between meal entries and ingredient/component rows.
 
-The project currently uses local CSV files as the data layer. Core service functions read and write these files, while MCP resources and tools expose selected behaviour to an MCP-compatible client.
+The project currently uses local CSV files as the data layer. Core service functions read, write, validate, and protect these files, while MCP resources and tools expose selected behaviour to an MCP-compatible client.
 
-The main principle for Version 1.1 is:
+The main principle for Version 1.2 is:
 
-> Build a safe write foundation before adding automation.
+> Find and inspect intake records before editing or removing them.
 
-Version 1.1 intentionally avoids hidden side effects such as automatically reducing inventory when logging meals. More intelligent workflows are planned for future versions after the data model and validation rules are stable.
+Version 1.2 intentionally avoids hidden side effects such as automatic inventory deduction, automatic meal parsing, batch meal logging, or cascade deletion of child records. More automated workflows are planned for future versions after the relationship rules are stable.
 
 ---
 
-## Version 1.1 Capabilities
+## Version 1.2 Capabilities
 
-Version 1.1 supports:
+Version 1.2 supports:
 
 - reading current grocery inventory
 - reading meal-level intake history
@@ -33,25 +33,46 @@ Version 1.1 supports:
 - adding child intake item records
 - reviewing recent intake
 - summarising daily intake
+- searching intake parent and child records
+- updating parent intake entries
+- updating child intake items
+- removing child intake items
+- removing parent intake entries only when safe
+
+The major Version 1.2 addition is the intake cleanup workflow:
+
+```text
+search_intake
+    ↓
+update_intake_entry / update_intake_item
+    ↓
+remove_intake_item
+    ↓
+remove_intake_entry only when no child items remain
+```
 
 ---
 
-## Version 1.1 Boundaries
+## Version 1.2 Boundaries
 
-Version 1.1 does **not** yet support:
+Version 1.2 does **not** yet support:
 
 - automatic inventory deduction when logging intake
 - automatic meal parsing from free text into ingredient rows
 - automatic food waste inference from leftovers
 - automatic shopping list generation
 - batch meal logging across multiple CSV files
-- editing or deleting intake parent/child relationships
 - inventory consumption tools
+- cascade deletion of child intake items when removing a parent meal
 - long-term waste pattern analysis
+- meal planning intelligence
+- restock recommendation intelligence
 
 These are planned for later versions.
 
 The boundary is important because intake, inventory, and waste are related but not identical. Eating a meal does not always mean a tracked inventory item should be reduced. A meal may come from a restaurant, takeaway, leftovers, shared food, or untracked ingredients.
+
+Version 1.2 also keeps intake cleanup conservative. A parent intake entry cannot be removed while child intake items still exist. Child items must be removed first. This avoids orphaned records and makes the cleanup process explicit.
 
 ---
 
@@ -147,7 +168,7 @@ Examples:
 - overbought
 - did not like
 
-In Version 1.1, food waste records are created through `remove_inventory_item()` when the removal type is waste-related.
+Food waste records are created through `remove_inventory_item()` when the removal type is waste-related.
 
 ---
 
@@ -166,6 +187,7 @@ The core service is responsible for:
 - validating input
 - generating IDs
 - enforcing inventory, intake, and waste rules
+- protecting parent-child intake relationships
 - converting data into JSON-ready dictionaries
 
 The MCP tool layer should remain thin. Business rules should stay in the service layer.
@@ -319,8 +341,13 @@ unknown
 ```text
 get_recent_intake
 get_daily_intake_summary
+search_intake
 add_intake_entry
 add_intake_item
+update_intake_entry
+update_intake_item
+remove_intake_item
+remove_intake_entry
 ```
 
 #### `get_recent_intake`
@@ -337,6 +364,46 @@ The summary can use:
 - meal-level nutrition totals as fallback
 - counts for missing nutrition values
 
+#### `search_intake`
+
+Searches both parent intake entries and child intake item records.
+
+This is a read-only Version 1.2 workflow tool. It helps locate `intake_id` and `intake_item_id` values before calling update or remove tools.
+
+Supported filters include:
+
+- `query`
+- `intake_id`
+- `intake_item_id`
+- `date`
+- `date_from`
+- `date_to`
+- `meal_type`
+- `source`
+- `stock_id`
+- `category`
+- `limit`
+
+Expected behaviour:
+
+- searches parent meal/eating-event records
+- searches child ingredient/component records
+- returns matching parent entries in `matching_entries`
+- returns matching child items in `matching_items`
+- includes `child_item_count` on parent entries
+- includes `can_remove_entry` on parent entries
+- includes parent meal context on child item results
+- keeps search read-only and deterministic
+
+Important search rule:
+
+```text
+Parent query results match parent fields.
+Child query results match child fields.
+Matched child results include parent context.
+Matched parent results include child count, not automatically all children.
+```
+
 #### `add_intake_entry`
 
 Creates a parent meal/eating-event row.
@@ -350,6 +417,8 @@ Expected behaviour:
 - validates meal type
 - validates confidence/status fields
 - rejects negative nutrition estimates
+- does not automatically create child intake items
+- does not automatically deduct inventory
 
 #### `add_intake_item`
 
@@ -363,6 +432,72 @@ Expected behaviour:
 - validates `stock_id` only when supplied
 - rejects orphan intake items
 - rejects negative serving or nutrition values
+- does not automatically deduct inventory
+
+#### `update_intake_entry`
+
+Updates an existing parent meal/eating-event row.
+
+Expected behaviour:
+
+- requires an existing `intake_id`
+- updates only supplied fields
+- preserves fields that are not provided
+- validates date and time values
+- validates meal type
+- validates confidence/status fields
+- rejects negative nutrition estimates
+- does not automatically update child intake items
+- does not automatically deduct inventory
+
+Use this when correcting meal-level details such as date, time, meal type, meal name, source, amount eaten, nutrition estimates, hunger notes, or general notes.
+
+#### `update_intake_item`
+
+Updates an existing child ingredient/component row.
+
+Expected behaviour:
+
+- requires an existing `intake_item_id`
+- updates only supplied fields
+- preserves fields that are not provided
+- validates parent `intake_id` if changed
+- validates `stock_id` if supplied
+- rejects unknown parent intake entries
+- rejects unknown stock IDs when a non-blank stock ID is supplied
+- rejects negative serving or nutrition values
+- does not automatically update the parent meal totals
+- does not automatically deduct inventory
+
+Use this when correcting item-level details such as food item name, brand, category, source, stock ID, amount eaten, servings used, item-level nutrition estimates, or notes.
+
+#### `remove_intake_item`
+
+Removes one child intake item.
+
+Expected behaviour:
+
+- requires an existing `intake_item_id`
+- removes the selected child item only
+- does not remove the parent intake entry
+- backs up the CSV before saving
+
+Use this before removing a parent intake entry that still has child items.
+
+#### `remove_intake_entry`
+
+Removes one parent intake entry only when it has no child intake items.
+
+Expected behaviour:
+
+- requires an existing `intake_id`
+- checks whether child intake items exist
+- blocks removal if child items are still attached
+- tells the user to remove child items first
+- removes the parent entry only after it is safe
+- backs up the CSV before saving
+
+Version 1.2 does not cascade delete child intake items. This is intentional. It keeps cleanup explicit and prevents accidental loss of ingredient/component records.
 
 ---
 
@@ -437,47 +572,65 @@ Useful focused tests:
 
 ```powershell
 pytest tests/test_v1_1_write_foundation.py -q
+pytest tests/test_intake_edit_delete_service.py -q
+pytest tests/test_search_intake_service.py -q
 pytest tests/test_mcp_tool_registration.py -q
 ```
 
-Manual testing should also be done with MCP Inspector and curl.
+Version 1.2 was validated with:
+
+- service-layer tests for intake editing and removal
+- service-layer tests for `search_intake`
+- MCP tool registration checks
+- MCP Inspector manual testing
+
+Curl-based Streamable HTTP testing was deferred for Version 1.2. The core Version 1.2 behaviour was validated through pytest and MCP Inspector. Curl examples can be added later for HTTP documentation completeness.
 
 See:
 
 ```text
 docs/mcp_testing_guide.md
 docs/command_reference.md
-docs/version_1_1_completion_checklist.md
+docs/version_1_2_completion_checklist.md
 ```
 
 ---
 
 ## Documentation Map
 
-Recommended documentation files for Version 1.1:
+Recommended documentation files for Version 1.2:
 
 ```text
 README.md
 docs/project_roadmap.md
-docs/version_1_1_completion_checklist.md
+docs/version_1_2_completion_checklist.md
 docs/mcp_testing_guide.md
 docs/command_reference.md
-docs/development_journal_v1_1.md
+docs/development_journal_v1_2.md
 docs/future_version_plans.md
 ```
 
 ---
 
-## Final Version 1.1 Definition
+## Final Version 1.2 Definition
 
-Version 1.1 is complete when:
+Version 1.2 is complete when:
 
-- service-layer write functions are tested
-- MCP tools are registered
-- MCP Inspector can call the Version 1.1 tools
+- `search_intake` can locate parent intake entries and child intake items
+- `search_intake` returns parent-child relationship context
+- parent results include `child_item_count`
+- parent results include `can_remove_entry`
+- child item results include parent meal context
+- `update_intake_entry` updates only supplied parent fields
+- `update_intake_item` updates only supplied child fields
+- `remove_intake_item` removes one child item safely
+- `remove_intake_entry` blocks removal when child items still exist
+- parent intake entries cannot be removed while child items remain
+- service-layer tests pass
+- MCP tool registration tests pass
+- MCP Inspector can call the Version 1.2 tools
 - invalid input is rejected clearly
-- inventory removal can create waste safely
-- intake items cannot be orphaned
 - intake does not automatically deduct inventory
-- documentation clearly explains the scope boundary
-- future automation is deferred to later versions
+- cascade deletion is intentionally deferred
+- curl testing is noted as deferred rather than blocking completion
+- documentation clearly explains the Version 1.2 scope boundary

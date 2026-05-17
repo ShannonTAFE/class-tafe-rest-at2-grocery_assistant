@@ -24,7 +24,7 @@ Version 1.1:
 Safe write tools for inventory, intake, and waste.
 
 Version 1.2:
-Edit/delete tools for intake and relationship cleanup.
+Relationship-safe intake search, editing, and cleanup.
 
 Version 1.3:
 Controlled inventory consumption tools.
@@ -103,24 +103,64 @@ advanced waste analysis
 
 ---
 
-# Version 1.2 — Relationship Editing and Cleanup
+# Version 1.2 — Intake Relationship Editing and Cleanup
+
+## Status
+
+Implemented / finalising documentation.
 
 ## Goal
 
-Add safe editing and removal for intake parent-child records.
+Add safe search, editing, and removal tools for intake records while preserving the relationship between parent meal entries and child ingredient/component rows.
 
-## Possible Tools
+## Included
 
 ```text
+search_intake
 update_intake_entry
 update_intake_item
 remove_intake_item
 remove_intake_entry
+parent-child relationship checks
+parent removal blocking when child items exist
+service-layer tests
+MCP Inspector validation
 ```
 
-## Main Design Rule
+## Main Workflow
 
-Start conservatively. If a parent meal has child items, block parent removal until the child items are handled.
+```text
+search_intake
+    ↓
+inspect intake_id / intake_item_id
+    ↓
+update_intake_entry or update_intake_item
+    ↓
+remove_intake_item if needed
+    ↓
+remove_intake_entry only when no child items remain
+```
+
+## Design Notes
+
+Version 1.2 avoids cascade deletion. Parent intake entries cannot be removed while child intake items still exist.
+
+This is intentionally conservative. It prevents orphaned records and avoids accidental loss of ingredient/component data.
+
+`search_intake` was added because broad read tools such as `get_recent_intake` and `get_daily_intake_summary` are useful for review but not precise enough for edit/delete workflows. `search_intake` helps identify exact `intake_id` and `intake_item_id` values before changes are made.
+
+## Deferred
+
+```text
+automatic inventory deduction
+batch meal logging
+automatic intake parsing
+cascade delete behaviour
+shopping list generation
+meal suggestions
+restock suggestions
+waste pattern analysis
+```
 
 ---
 
@@ -130,10 +170,12 @@ Start conservatively. If a parent meal has child items, block parent removal unt
 
 Add explicit tools for reducing inventory.
 
-## Possible Tool
+## Possible Tools
 
 ```text
 consume_inventory_item
+adjust_inventory_quantity
+mark_inventory_used_up
 ```
 
 ## Key Rule
@@ -148,10 +190,11 @@ Inventory consumption should be separate from intake logging until the relations
 
 Support higher-level meal creation workflows.
 
-## Possible Tool
+## Possible Tools
 
 ```text
 add_meal_with_items
+add_intake_entry_with_items
 ```
 
 ## Risk
