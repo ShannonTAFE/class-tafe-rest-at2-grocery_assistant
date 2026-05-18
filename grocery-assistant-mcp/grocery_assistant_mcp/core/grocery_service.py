@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from datetime import date, timedelta
 from pathlib import Path
@@ -35,6 +34,19 @@ from grocery_assistant_mcp.core.constants import (
     VALID_FINISHED_STATUSES,
 )
 
+from grocery_assistant_mcp.core.service_utils import (
+    today_iso,
+    to_float,
+    validate_choice,
+    df_to_records,
+    to_json,
+    safe_text_series as _safe_text_series,
+    normalise_search_limit as _normalise_search_limit,
+    optional_clean_text as _optional_clean_text,
+    contains_query_mask as _contains_query_mask,
+    exact_text_mask as _exact_text_mask,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -56,46 +68,7 @@ from grocery_assistant_mcp.core.write_helpers import (
 logger = logging.getLogger("grocery_mcp.grocery_data")
 
 
-# ---------------------------------------------------------------------
-# Small service helpers
-# ---------------------------------------------------------------------
 
-def today_iso() -> str:
-    """Return today's date in YYYY-MM-DD format."""
-    return date.today().isoformat()
-
-
-def to_float(value: object, default: float = 0.0) -> float:
-    """
-    Convert a CSV value to float.
-
-    Blank, missing, or invalid values return the supplied default.
-    """
-    if value is None:
-        return default
-
-    if str(value).strip() == "":
-        return default
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def validate_choice(value: object, valid_values: set[str], field_name: str) -> str:
-    """
-    Normalize and validate a string choice.
-
-    Returns the cleaned lowercase value.
-    """
-    cleaned = str(value or "").strip().lower()
-
-    if cleaned not in valid_values:
-        allowed = ", ".join(sorted(valid_values))
-        raise ValueError(f"{field_name} must be one of: {allowed}")
-
-    return cleaned
 
 
 def should_create_food_waste_record(removal_type: str) -> bool:
@@ -245,34 +218,7 @@ def read_inventory_consumption() -> pd.DataFrame:
     return read_csv_file(INVENTORY_CONSUMPTION_PATH)
 
 
-def df_to_records(df: pd.DataFrame) -> list[dict]:
-    """
-    Convert a pandas DataFrame into a list of dictionaries.
 
-    This format is easy for MCP tools to return.
-    """
-    if df.empty:
-        return []
-
-    return df.fillna("").to_dict(orient="records")
-
-
-def to_json(data) -> str:
-    """
-    Convert Python data into formatted JSON text.
-
-    This is useful for MCP resources.
-    """
-    return json.dumps(data, indent=2, ensure_ascii=False)
-
-
-def _safe_text_series(df: pd.DataFrame, column: str) -> pd.Series:
-    """
-    Convert a text column into lowercase strings safely.
-
-    This avoids errors if some values are blank or missing.
-    """
-    return df[column].fillna("").astype(str).str.lower()
 
 
 def list_inventory_items(
@@ -1068,80 +1014,6 @@ def get_recent_intake(
     df = df.drop(columns=["_parsed_date"], errors="ignore")
 
     return df_to_records(df)
-
-def _normalise_search_limit(limit: int, default: int = 20, maximum: int = 100) -> int:
-    """
-    Normalise a user-provided search limit.
-
-    The cap prevents very large MCP responses while still allowing broader
-    inspection when needed.
-    """
-    if limit is None:
-        return default
-
-    try:
-        limit_value = int(limit)
-    except (TypeError, ValueError):
-        raise ValueError("limit must be a positive integer.")
-
-    if limit_value < 1:
-        raise ValueError("limit must be at least 1.")
-
-    return min(limit_value, maximum)
-
-
-def _optional_clean_text(value: str | None, field_name: str) -> str:
-    """
-    Clean optional text search/filter values.
-    """
-    if value is None:
-        return ""
-
-    return str(value).strip()
-
-
-def _contains_query_mask(df: pd.DataFrame, columns: list[str], query: str) -> pd.Series:
-    """
-    Return a boolean mask where any selected column contains the query.
-
-    Matching is case-insensitive and literal, not regex-based.
-    """
-    if df.empty:
-        return pd.Series([], dtype=bool)
-
-    if not query:
-        return pd.Series([True] * len(df), index=df.index)
-
-    query = query.lower().strip()
-    existing_columns = [column for column in columns if column in df.columns]
-
-    if not existing_columns:
-        return pd.Series([False] * len(df), index=df.index)
-
-    mask = pd.Series([False] * len(df), index=df.index)
-
-    for column in existing_columns:
-        column_text = df[column].fillna("").astype(str).str.lower()
-        mask = mask | column_text.str.contains(query, regex=False, na=False)
-
-    return mask
-
-
-def _exact_text_mask(df: pd.DataFrame, column: str, value: str) -> pd.Series:
-    """
-    Return a case-insensitive exact-match mask for a text column.
-    """
-    if df.empty:
-        return pd.Series([], dtype=bool)
-
-    if not value:
-        return pd.Series([True] * len(df), index=df.index)
-
-    if column not in df.columns:
-        return pd.Series([False] * len(df), index=df.index)
-
-    return df[column].fillna("").astype(str).str.strip().str.lower() == value.lower()
-
 
 def save_related_csv_updates(
     operations: list[tuple[str, Path, pd.DataFrame, pd.DataFrame]],
