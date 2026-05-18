@@ -15,6 +15,26 @@ from grocery_assistant_mcp.utils.paths import (
     FOOD_WASTE_PATH,
 )
 
+from grocery_assistant_mcp.core.schemas import (
+    INVENTORY_COLUMNS,
+    INTAKE_HISTORY_COLUMNS,
+    INTAKE_ITEMS_COLUMNS,
+    INVENTORY_CONSUMPTION_COLUMNS,
+    FOOD_WASTE_COLUMNS,
+)
+
+from grocery_assistant_mcp.core.constants import (
+    VALID_STOCK_STATUSES,
+    VALID_REMOVAL_TYPES,
+    WASTE_REMOVAL_TYPES,
+    VALID_TRACKING_CONFIDENCE,
+    VALID_MEAL_TYPES,
+    VALID_CONSUMPTION_TYPES,
+    VALID_CONFIDENCE_LEVELS,
+    VALID_YES_NO_UNKNOWN,
+    VALID_FINISHED_STATUSES,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -34,233 +54,6 @@ from grocery_assistant_mcp.core.write_helpers import (
 )
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
-
-
-# ---------------------------------------------------------------------
-# CSV schemas
-# ---------------------------------------------------------------------
-#
-# Design note:
-# - user_inventory.csv stores the user's tracked grocery stock state.
-#   It is not limited to food physically available right now.
-#
-# - A tracked inventory item may be available, low, very low, empty, out of
-#   stock, or expired but still physically present.
-#
-# - Keeping out-of-stock items can support future personalization, such as
-#   recognizing staples, common restock needs, frequently used ingredients,
-#   and low-priority items that do not need urgent replacement.
-#
-# - user_food_waste.csv is separate because it serves a different purpose:
-#   learning from meaningful waste outcomes. It records expired, spoiled,
-#   discarded, unused, overbought, or disliked food.
-#
-# - Data cleanup removals, duplicate records, incorrect records, test records,
-#   and normally used-up items should not be stored as food waste.
-#
-# - If an item is out of stock but still useful to remember, update its
-#   stock_status to "out" or "empty" instead of removing it.
-#
-# - If an item should no longer be tracked at all, remove it with
-#   remove_inventory_item().
-
-INVENTORY_COLUMNS = [
-    "stock_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "quantity",
-    "unit",
-    "servings_remaining",
-    "initial_quantity",
-    "initial_servings",
-    "stock_status",
-    "expiry_date",
-    "date_added",
-    "notes",
-]
-
-FOOD_WASTE_COLUMNS = [
-    "waste_id",
-    "stock_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "initial_quantity",
-    "initial_unit",
-    "initial_servings",
-    "quantity_wasted",
-    "unit",
-    "servings_wasted",
-    "estimated_quantity_consumed",
-    "estimated_servings_consumed",
-    "date_added",
-    "expiry_date",
-    "wasted_at",
-    "waste_type",
-    "waste_reason",
-    "tracking_confidence",
-    "notes",
-]
-
-INTAKE_HISTORY_COLUMNS = [
-    "intake_id",
-    "date",
-    "time",
-    "meal_type",
-    "meal_name",
-    "meal_description",
-    "source",
-    "amount_eaten",
-    "portion_confidence",
-    "total_calories_estimate",
-    "total_protein_g_estimate",
-    "total_carbs_g_estimate",
-    "total_fat_g_estimate",
-    "total_fibre_g_estimate",
-    "total_sugar_g_estimate",
-    "total_sodium_mg_estimate",
-    "nutrition_confidence",
-    "was_finished",
-    "leftovers_created",
-    "hunger_before",
-    "hunger_after",
-    "notes",
-]
-
-INTAKE_ITEMS_COLUMNS = [
-    "intake_item_id",
-    "intake_id",
-    "food_item",
-    "brand",
-    "category",
-    "source",
-    "stock_id",
-    "amount_eaten",
-    "quantity_used",
-    "unit",
-    "servings_used",
-    "calories_estimate",
-    "protein_g_estimate",
-    "carbs_g_estimate",
-    "fat_g_estimate",
-    "fibre_g_estimate",
-    "sugar_g_estimate",
-    "sodium_mg_estimate",
-    "nutrition_confidence",
-    "notes",
-]
-
-
-INVENTORY_CONSUMPTION_COLUMNS = [
-    "consumption_id",
-    "stock_id",
-    "intake_id",
-    "intake_item_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "quantity_used",
-    "unit",
-    "servings_used",
-    "quantity_before",
-    "servings_before",
-    "quantity_after",
-    "servings_after",
-    "stock_status_before",
-    "stock_status_after",
-    "consumed_at",
-    "consumption_type",
-    "tracking_confidence",
-    "notes",
-]
-
-# ---------------------------------------------------------------------
-# Valid values
-# ---------------------------------------------------------------------
-
-VALID_STOCK_STATUSES = {
-    "in_stock",
-    "low",
-    "very_low",
-    "out",
-    "expired",
-}
-
-VALID_REMOVAL_TYPES = {
-    "used_up",
-    "expired",
-    "spoiled",
-    "discarded",
-    "unused",
-    "overbought",
-    "did_not_like",
-    "duplicate_entry",
-    "incorrect_entry",
-    "test_entry",
-    "no_longer_tracked",
-    "unknown",
-}
-
-WASTE_REMOVAL_TYPES = {
-    "expired",
-    "spoiled",
-    "discarded",
-    "unused",
-    "overbought",
-    "did_not_like",
-}
-
-VALID_TRACKING_CONFIDENCE = {
-    "low",
-    "medium",
-    "high",
-}
-
-VALID_MEAL_TYPES = {
-    "breakfast",
-    "brunch",
-    "lunch",
-    "dinner",
-    "snack",
-    "drink",
-    "dessert",
-    "supper",
-    "meal",
-    "other",
-    "unknown",
-}
-
-VALID_CONSUMPTION_TYPES = {
-    "consumed",
-    "used_in_cooking",
-    "finished",
-    "adjustment",
-    "other",
-}
-
-VALID_CONFIDENCE_LEVELS = {
-    "low",
-    "medium",
-    "high",
-    "unknown",
-}
-
-VALID_YES_NO_UNKNOWN = {
-    "yes",
-    "no",
-    "unknown",
-}
-
-VALID_FINISHED_STATUSES = {
-    "yes",
-    "no",
-    "partial",
-    "unknown",
-}
 
 
 # ---------------------------------------------------------------------
