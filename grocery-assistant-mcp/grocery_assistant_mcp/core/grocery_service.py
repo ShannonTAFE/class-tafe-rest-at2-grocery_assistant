@@ -71,6 +71,15 @@ from grocery_assistant_mcp.core.waste_helpers import (
     build_food_waste_record,
 )
 
+from grocery_assistant_mcp.core.intake_helpers import (
+    INTAKE_ENTRY_NUMERIC_FIELDS,
+    INTAKE_ITEM_NUMERIC_FIELDS,
+    clean_and_validate_intake_entry_fields,
+    clean_and_validate_intake_item_fields,
+    validate_intake_entry_updates,
+    validate_intake_item_updates,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -1091,62 +1100,29 @@ def add_intake_entry(
     Use add_intake_item() to attach optional ingredient/component rows to
     this meal through intake_id.
     """
-    date = clean_text(date, "date", required=True)
-    meal_name = clean_text(meal_name, "meal_name", required=True)
-    time = clean_text(time, "time")
-    meal_description = clean_text(meal_description)
-    source = clean_text(source)
-    amount_eaten = clean_text(amount_eaten)
-    hunger_before = clean_text(hunger_before)
-    hunger_after = clean_text(hunger_after)
-    notes = clean_text(notes)
-
-    validate_date_or_blank(date, "date")
-    validate_time_or_blank(time, "time")
-
-    meal_type = validate_required_choice(
-        meal_type,
-        VALID_MEAL_TYPES,
-        "meal_type",
+    entry_fields = clean_and_validate_intake_entry_fields(
+        date=date,
+        meal_name=meal_name,
+        time=time,
+        meal_type=meal_type,
+        meal_description=meal_description,
+        source=source,
+        amount_eaten=amount_eaten,
+        portion_confidence=portion_confidence,
+        total_calories_estimate=total_calories_estimate,
+        total_protein_g_estimate=total_protein_g_estimate,
+        total_carbs_g_estimate=total_carbs_g_estimate,
+        total_fat_g_estimate=total_fat_g_estimate,
+        total_fibre_g_estimate=total_fibre_g_estimate,
+        total_sugar_g_estimate=total_sugar_g_estimate,
+        total_sodium_mg_estimate=total_sodium_mg_estimate,
+        nutrition_confidence=nutrition_confidence,
+        was_finished=was_finished,
+        leftovers_created=leftovers_created,
+        hunger_before=hunger_before,
+        hunger_after=hunger_after,
+        notes=notes,
     )
-
-    portion_confidence = validate_choice_or_blank(
-        portion_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "portion_confidence",
-        default="unknown",
-    )
-
-    nutrition_confidence = validate_choice_or_blank(
-        nutrition_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "nutrition_confidence",
-        default="unknown",
-    )
-
-    was_finished = validate_choice_or_blank(
-        was_finished,
-        VALID_FINISHED_STATUSES,
-        "was_finished",
-        default="unknown",
-    )
-
-    leftovers_created = validate_choice_or_blank(
-        leftovers_created,
-        VALID_YES_NO_UNKNOWN,
-        "leftovers_created",
-        default="unknown",
-    )
-
-    numeric_values = validate_non_negative_fields({
-        "total_calories_estimate": total_calories_estimate,
-        "total_protein_g_estimate": total_protein_g_estimate,
-        "total_carbs_g_estimate": total_carbs_g_estimate,
-        "total_fat_g_estimate": total_fat_g_estimate,
-        "total_fibre_g_estimate": total_fibre_g_estimate,
-        "total_sugar_g_estimate": total_sugar_g_estimate,
-        "total_sodium_mg_estimate": total_sodium_mg_estimate,
-    })
 
     df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
 
@@ -1155,27 +1131,7 @@ def add_intake_entry(
 
     new_entry = {
         "intake_id": intake_id,
-        "date": date,
-        "time": time,
-        "meal_type": meal_type,
-        "meal_name": meal_name,
-        "meal_description": meal_description,
-        "source": source,
-        "amount_eaten": amount_eaten,
-        "portion_confidence": portion_confidence,
-        "total_calories_estimate": numeric_values["total_calories_estimate"],
-        "total_protein_g_estimate": numeric_values["total_protein_g_estimate"],
-        "total_carbs_g_estimate": numeric_values["total_carbs_g_estimate"],
-        "total_fat_g_estimate": numeric_values["total_fat_g_estimate"],
-        "total_fibre_g_estimate": numeric_values["total_fibre_g_estimate"],
-        "total_sugar_g_estimate": numeric_values["total_sugar_g_estimate"],
-        "total_sodium_mg_estimate": numeric_values["total_sodium_mg_estimate"],
-        "nutrition_confidence": nutrition_confidence,
-        "was_finished": was_finished,
-        "leftovers_created": leftovers_created,
-        "hunger_before": hunger_before,
-        "hunger_after": hunger_after,
-        "notes": notes,
+        **entry_fields,
     }
 
     backup_path = backup_csv(INTAKE_HISTORY_PATH)
@@ -1253,84 +1209,9 @@ def update_intake_entry(
     if not updates:
         raise ValueError("At least one field must be provided to update.")
 
-    text_fields = [
-        "date",
-        "time",
-        "meal_name",
-        "meal_description",
-        "source",
-        "amount_eaten",
-        "hunger_before",
-        "hunger_after",
-        "notes",
-    ]
+    updates = validate_intake_entry_updates(updates)
 
-    for field in text_fields:
-        if field in updates:
-            updates[field] = clean_text(
-                updates[field],
-                field,
-                required=(field in {"date", "meal_name"}),
-            )
-
-    if "date" in updates:
-        validate_required_date(updates["date"], "date")
-
-    if "time" in updates:
-        validate_time_or_blank(updates["time"], "time")
-
-    if "meal_type" in updates:
-        updates["meal_type"] = validate_required_choice(
-            updates["meal_type"],
-            VALID_MEAL_TYPES,
-            "meal_type",
-        )
-
-    if "portion_confidence" in updates:
-        updates["portion_confidence"] = validate_choice_or_blank(
-            updates["portion_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "portion_confidence",
-            default="unknown",
-        )
-
-    if "nutrition_confidence" in updates:
-        updates["nutrition_confidence"] = validate_choice_or_blank(
-            updates["nutrition_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "nutrition_confidence",
-            default="unknown",
-        )
-
-    if "was_finished" in updates:
-        updates["was_finished"] = validate_choice_or_blank(
-            updates["was_finished"],
-            VALID_FINISHED_STATUSES,
-            "was_finished",
-            default="unknown",
-        )
-
-    if "leftovers_created" in updates:
-        updates["leftovers_created"] = validate_choice_or_blank(
-            updates["leftovers_created"],
-            VALID_YES_NO_UNKNOWN,
-            "leftovers_created",
-            default="unknown",
-        )
-
-    numeric_fields = [
-        "total_calories_estimate",
-        "total_protein_g_estimate",
-        "total_carbs_g_estimate",
-        "total_fat_g_estimate",
-        "total_fibre_g_estimate",
-        "total_sugar_g_estimate",
-        "total_sodium_mg_estimate",
-    ]
-
-    for field in numeric_fields:
-        if field in updates:
-            updates[field] = validate_non_negative_number(updates[field], field)
+    numeric_fields = INTAKE_ENTRY_NUMERIC_FIELDS
 
     df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
 
@@ -1389,39 +1270,34 @@ def add_intake_item(
 
     Each row belongs to a parent meal/eating event in user_intake_history.csv
     through intake_id. Optional stock_id values are validated if supplied.
+
+    This function does not automatically deduct inventory.
     """
     intake_id = require_existing_intake_id(intake_id)
 
-    food_item = clean_text(food_item, "food_item", required=True)
-    brand = clean_text(brand, "brand")
-    category = clean_text(category, "category")
-    source = clean_text(source, "source")
-    stock_id = clean_text(stock_id, "stock_id")
-    amount_eaten = clean_text(amount_eaten, "amount_eaten")
-    unit = clean_text(unit, "unit")
-    notes = clean_text(notes, "notes")
-
-    if stock_id:
-        stock_id = require_existing_stock_id(stock_id)
-
-    nutrition_confidence = validate_choice_or_blank(
-        nutrition_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "nutrition_confidence",
-        default="unknown",
+    item_fields = clean_and_validate_intake_item_fields(
+        food_item=food_item,
+        brand=brand,
+        category=category,
+        source=source,
+        stock_id=stock_id,
+        amount_eaten=amount_eaten,
+        quantity_used=quantity_used,
+        unit=unit,
+        servings_used=servings_used,
+        calories_estimate=calories_estimate,
+        protein_g_estimate=protein_g_estimate,
+        carbs_g_estimate=carbs_g_estimate,
+        fat_g_estimate=fat_g_estimate,
+        fibre_g_estimate=fibre_g_estimate,
+        sugar_g_estimate=sugar_g_estimate,
+        sodium_mg_estimate=sodium_mg_estimate,
+        nutrition_confidence=nutrition_confidence,
+        notes=notes,
     )
 
-    numeric_values = validate_non_negative_fields({
-        "quantity_used": quantity_used,
-        "servings_used": servings_used,
-        "calories_estimate": calories_estimate,
-        "protein_g_estimate": protein_g_estimate,
-        "carbs_g_estimate": carbs_g_estimate,
-        "fat_g_estimate": fat_g_estimate,
-        "fibre_g_estimate": fibre_g_estimate,
-        "sugar_g_estimate": sugar_g_estimate,
-        "sodium_mg_estimate": sodium_mg_estimate,
-    })
+    if item_fields["stock_id"]:
+        item_fields["stock_id"] = require_existing_stock_id(item_fields["stock_id"])
 
     df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
 
@@ -1431,24 +1307,7 @@ def add_intake_item(
     new_item = {
         "intake_item_id": intake_item_id,
         "intake_id": intake_id,
-        "food_item": food_item,
-        "brand": brand,
-        "category": category,
-        "source": source,
-        "stock_id": stock_id,
-        "amount_eaten": amount_eaten,
-        "quantity_used": numeric_values["quantity_used"],
-        "unit": unit,
-        "servings_used": numeric_values["servings_used"],
-        "calories_estimate": numeric_values["calories_estimate"],
-        "protein_g_estimate": numeric_values["protein_g_estimate"],
-        "carbs_g_estimate": numeric_values["carbs_g_estimate"],
-        "fat_g_estimate": numeric_values["fat_g_estimate"],
-        "fibre_g_estimate": numeric_values["fibre_g_estimate"],
-        "sugar_g_estimate": numeric_values["sugar_g_estimate"],
-        "sodium_mg_estimate": numeric_values["sodium_mg_estimate"],
-        "nutrition_confidence": nutrition_confidence,
-        "notes": notes,
+        **item_fields,
     }
 
     backup_path = backup_csv(INTAKE_ITEMS_PATH)
@@ -1521,25 +1380,7 @@ def update_intake_item(
     if not updates:
         raise ValueError("At least one field must be provided to update.")
 
-    text_fields = [
-        "intake_id",
-        "food_item",
-        "brand",
-        "category",
-        "source",
-        "stock_id",
-        "amount_eaten",
-        "unit",
-        "notes",
-    ]
-
-    for field in text_fields:
-        if field in updates:
-            updates[field] = clean_text(
-                updates[field],
-                field,
-                required=(field in {"intake_id", "food_item"}),
-            )
+    updates = validate_intake_item_updates(updates)
 
     if "intake_id" in updates:
         updates["intake_id"] = require_existing_intake_id(updates["intake_id"])
@@ -1547,29 +1388,7 @@ def update_intake_item(
     if "stock_id" in updates and updates["stock_id"]:
         updates["stock_id"] = require_existing_stock_id(updates["stock_id"])
 
-    if "nutrition_confidence" in updates:
-        updates["nutrition_confidence"] = validate_choice_or_blank(
-            updates["nutrition_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "nutrition_confidence",
-            default="unknown",
-        )
-
-    numeric_fields = [
-        "servings_used",
-        "quantity_used",
-        "calories_estimate",
-        "protein_g_estimate",
-        "carbs_g_estimate",
-        "fat_g_estimate",
-        "fibre_g_estimate",
-        "sugar_g_estimate",
-        "sodium_mg_estimate",
-    ]
-
-    for field in numeric_fields:
-        if field in updates:
-            updates[field] = validate_non_negative_number(updates[field], field)
+    numeric_fields = INTAKE_ITEM_NUMERIC_FIELDS
 
     df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
 
