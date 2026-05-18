@@ -2,6 +2,3 @@ intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,q
 intake_item_001,intake_001,Toast,,pantry,manual,,2 slices,0.0,,1.0,180.0,6.0,30.0,3.0,4.0,2.0,250.0,medium,Example intake component
 intake_item_002,intake_004,Spaghetti,,pantry,home,,1 serve,100.0,g,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,Child item test
 intake_item_003,intake_004,Beef mince,,protein,home,,1 serve,125.0,g,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,Child item test
-intake_item_004,intake_005,Chicken Breast,Brand A,Meat,inventory,inv_001,1 serve,100.0,g,1.0,360.0,12.0,72.0,2.0,4.0,2.0,10.0,medium,Spaghetti inventory-linked test item
-intake_item_005,intake_006,Chicken Breast,Brand A,Meat,inventory,inv_001,1 serve,100.0,g,1.0,360.0,12.0,72.0,2.0,4.0,2.0,10.0,medium,Spaghetti inventory-linked test item
-intake_item_006,intake_006,Parmesan,,dairy,home,,small topping,10.0,g,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,low,Manual untracked topping

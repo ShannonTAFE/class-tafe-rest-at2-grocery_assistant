@@ -84,3 +84,14 @@ def test_add_meal_with_items_tool_is_registered():
     }
 
     assert "add_meal_with_items" in tool_names
+
+def test_batch_meal_tools_are_registered():
+    mcp = create_mcp_server()
+
+    tool_names = {
+        tool.name
+        for tool in mcp._tool_manager.list_tools()
+    }
+
+    assert "add_meal_with_items" in tool_names
+    assert "add_meal_with_inventory_items" in tool_names

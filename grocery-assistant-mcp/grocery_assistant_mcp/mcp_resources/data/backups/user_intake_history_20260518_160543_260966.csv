@@ -3,5 +3,3 @@ intake_001,2026-05-17,,snack,Banana,,,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium
 intake_002,2026-05-17,,dinner,spag bog,,home,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,unknown,unknown,,,
 intake_003,2026-05-17,,meal,Bacon Eggs,I ate bacon and eggs which had bread,home,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,
 intake_004,2026-05-18,18:30,dinner,Spaghetti bolognese,,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector batch meal logging test
-intake_005,2026-05-18,18:30,dinner,Spaghetti bolognese,Version 1.4C inventory-linked batch meal test,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector Version 1.4C test
-intake_006,2026-05-18,18:30,dinner,Spaghetti bolognese,Version 1.4C inventory-linked batch meal test,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector Version 1.4C test

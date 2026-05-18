@@ -1,5 +1,5 @@
 stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
-inv_001,Chicken Breast,Brand A,Meat,Fridge,300.0,g,1.33,500.0,3.33,in_stock,2024-12-01,2024-06-01,
+inv_001,Chicken Breast,Brand A,Meat,Fridge,400.0,g,2.33,500.0,3.33,in_stock,2024-12-01,2024-06-01,
 inv_002,Milk,Brand B,Dairy,Fridge,2000.0,ml,4.0,2000.0,4.0,in_stock,2024-06-15,2024-06-01,
 inv_003,Bread,Brand C,Bakery,Pantry,1.0,loaf,1.0,1.0,1.0,in_stock,2024-06-10,2024-06-01,
 inv_004,Apples,Brand D,Fruit,Pantry,6.0,pieces,6.0,6.0,6.0,in_stock,2024-06-20,2024-06-01,
