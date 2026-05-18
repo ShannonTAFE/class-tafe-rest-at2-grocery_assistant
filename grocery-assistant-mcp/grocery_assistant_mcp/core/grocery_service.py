@@ -80,6 +80,8 @@ from grocery_assistant_mcp.core.intake_helpers import (
     validate_intake_item_updates,
 )
 
+from grocery_assistant_mcp.core.batch_meal_service import add_meal_with_items
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
