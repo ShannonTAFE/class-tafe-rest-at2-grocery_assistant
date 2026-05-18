@@ -15,24 +15,32 @@ add_meal_with_inventory_items
 
 # Version 1.5 — Planning Intelligence
 
-Version 1.5 can begin adding recommendation and planning features on top of the safe write foundation.
+Goal:
+Add read-heavy recommendation tools that help the assistant suggest meals,
+restocks, shopping list drafts, and intake insights using existing inventory,
+intake, consumption, and waste records.
 
-Possible capabilities:
+Core rule:
+Planning tools may suggest, rank, explain, and draft, but they must not silently
+mutate inventory, intake, inventory consumption, waste, or shopping list records.
 
-```text
-suggest_meals_from_inventory
-review_low_stock_items
-suggest_restock_items
-review_food_waste_patterns
-draft_shopping_list
-suggest_next_meal
-review_recent_intake_patterns
-```
+Initial tools:
+- review_low_stock_items
+- suggest_restock_items
+- suggest_meals_from_inventory
+- suggest_next_meal
+- review_recent_intake_patterns
+- draft_shopping_list
 
-Important rule:
+Deferred:
+- persistent shopping list writes
+- recipe system
+- meal templates
+- automatic alias learning
+- automatic inventory deduction from suggestions
+- reversal/undo workflows
+- nutrition recalculation engine
 
-```text
-Planning tools may suggest, but should not silently mutate inventory or intake records.
 ```
 
 ---
