@@ -1,0 +1,2 @@
+stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
+inv_001,Chicken Breast,Brand A,Meat,Fridge,400.0,g,2.33,500.0,3.33,in_stock,2026-06-01,2026-05-01,Spaghetti inventory-linked test item

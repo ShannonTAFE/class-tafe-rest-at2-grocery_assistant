@@ -1,0 +1,92 @@
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "tools/call",
+  "params": {
+    "name": "add_meal_with_items",
+    "arguments": {
+      "meal_data": {
+        "date": "2026-05-18",
+        "time": "12:30",
+        "meal_type": "lunch",
+        "meal_name": "Oats with milk and banana",
+        "meal_description": "Version 1.4B intake-only batch meal test",
+        "source": "home",
+        "amount_eaten": "1 bowl",
+        "portion_confidence": "medium",
+        "total_calories_estimate": 520,
+        "total_protein_g_estimate": 22,
+        "total_carbs_g_estimate": 76,
+        "total_fat_g_estimate": 14,
+        "total_fibre_g_estimate": 10,
+        "total_sugar_g_estimate": 24,
+        "total_sodium_mg_estimate": 170,
+        "nutrition_confidence": "medium",
+        "was_finished": "yes",
+        "leftovers_created": "no",
+        "hunger_before": "hungry",
+        "hunger_after": "satisfied",
+        "notes": "Version 1.4B intake-only curl test"
+      },
+      "items": [
+        {
+          "food_item": "Oats",
+          "brand": "",
+          "category": "pantry",
+          "source": "home",
+          "amount_eaten": "1 serve",
+          "quantity_used": 50,
+          "unit": "g",
+          "servings_used": 1,
+          "calories_estimate": 190,
+          "protein_g_estimate": 6,
+          "carbs_g_estimate": 32,
+          "fat_g_estimate": 4,
+          "fibre_g_estimate": 5,
+          "sugar_g_estimate": 1,
+          "sodium_mg_estimate": 5,
+          "nutrition_confidence": "medium",
+          "notes": "Manual item; no inventory deduction"
+        },
+        {
+          "food_item": "Milk",
+          "brand": "",
+          "category": "dairy",
+          "source": "home",
+          "amount_eaten": "150 ml",
+          "quantity_used": 150,
+          "unit": "ml",
+          "servings_used": 1,
+          "calories_estimate": 95,
+          "protein_g_estimate": 5,
+          "carbs_g_estimate": 7,
+          "fat_g_estimate": 5,
+          "fibre_g_estimate": 0,
+          "sugar_g_estimate": 7,
+          "sodium_mg_estimate": 70,
+          "nutrition_confidence": "medium",
+          "notes": "Manual item; no inventory deduction"
+        },
+        {
+          "food_item": "Banana",
+          "brand": "",
+          "category": "fruit",
+          "source": "home",
+          "amount_eaten": "1 banana",
+          "quantity_used": 1,
+          "unit": "piece",
+          "servings_used": 1,
+          "calories_estimate": 105,
+          "protein_g_estimate": 1,
+          "carbs_g_estimate": 27,
+          "fat_g_estimate": 0,
+          "fibre_g_estimate": 3,
+          "sugar_g_estimate": 14,
+          "sodium_mg_estimate": 1,
+          "nutrition_confidence": "medium",
+          "notes": "Manual item; no inventory deduction"
+        }
+      ]
+    }
+  }
+}

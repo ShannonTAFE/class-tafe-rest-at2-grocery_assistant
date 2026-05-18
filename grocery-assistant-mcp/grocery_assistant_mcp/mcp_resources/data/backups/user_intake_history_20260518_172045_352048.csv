@@ -1,0 +1,8 @@
+intake_id,date,time,meal_type,meal_name,meal_description,source,amount_eaten,portion_confidence,total_calories_estimate,total_protein_g_estimate,total_carbs_g_estimate,total_fat_g_estimate,total_fibre_g_estimate,total_sugar_g_estimate,total_sodium_mg_estimate,nutrition_confidence,was_finished,leftovers_created,hunger_before,hunger_after,notes
+intake_001,2026-05-17,,snack,Banana,,,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,unknown,,,
+intake_002,2026-05-17,,dinner,spag bog,,home,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,unknown,unknown,,,
+intake_003,2026-05-17,,meal,Bacon Eggs,I ate bacon and eggs which had bread,home,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,
+intake_004,2026-05-18,18:30,dinner,Spaghetti bolognese,,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector batch meal logging test
+intake_005,2026-05-18,18:30,dinner,Spaghetti bolognese,Version 1.4C inventory-linked batch meal test,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector Version 1.4C test
+intake_006,2026-05-18,18:30,dinner,Spaghetti bolognese,Version 1.4C inventory-linked batch meal test,home,1 bowl,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,yes,no,,,MCP Inspector Version 1.4C test
+intake_007,2026-05-18,,breakfast,Avocado on toast,i ate 1 avocado on 3 toast,home,,medium,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,unknown,unknown,,,

@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "method": "tools/call",
+  "params": {
+    "name": "search_inventory",
+    "arguments": {
+      "query": "beef",
+      "category": "protein",
+      "location": ""
+    }
+  }
+}

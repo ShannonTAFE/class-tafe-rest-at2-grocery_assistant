@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from datetime import date, timedelta
 from pathlib import Path
@@ -13,6 +12,78 @@ from grocery_assistant_mcp.utils.paths import (
     INTAKE_ITEMS_PATH,
     INVENTORY_CONSUMPTION_PATH,
     FOOD_WASTE_PATH,
+)
+
+from grocery_assistant_mcp.core.schemas import (
+    INVENTORY_COLUMNS,
+    INTAKE_HISTORY_COLUMNS,
+    INTAKE_ITEMS_COLUMNS,
+    INVENTORY_CONSUMPTION_COLUMNS,
+    FOOD_WASTE_COLUMNS,
+)
+
+from grocery_assistant_mcp.core.constants import (
+    VALID_STOCK_STATUSES,
+    VALID_REMOVAL_TYPES,
+    WASTE_REMOVAL_TYPES,
+    VALID_TRACKING_CONFIDENCE,
+    VALID_MEAL_TYPES,
+    VALID_CONFIDENCE_LEVELS,
+    VALID_YES_NO_UNKNOWN,
+    VALID_FINISHED_STATUSES,
+)
+
+from grocery_assistant_mcp.core.service_utils import (
+    today_iso,
+    validate_choice,
+    df_to_records,
+    to_json,
+    safe_text_series as _safe_text_series,
+    normalise_search_limit as _normalise_search_limit,
+    optional_clean_text as _optional_clean_text,
+    contains_query_mask as _contains_query_mask,
+    exact_text_mask as _exact_text_mask,
+)
+
+from grocery_assistant_mcp.core.inventory_rules import (
+    infer_stock_status,
+    validate_inventory_stock_consistency,
+    find_possible_inventory_duplicates,
+)
+
+from grocery_assistant_mcp.core.transaction_helpers import save_related_csv_updates
+
+from grocery_assistant_mcp.core.relationship_helpers import (
+    id_exists,
+    require_existing_id,
+)
+
+from grocery_assistant_mcp.core.consumption_helpers import (
+    validate_consumption_amounts,
+    calculate_inventory_after_consumption,
+    apply_inventory_consumption_to_df,
+    build_inventory_consumption_record,
+    build_intake_item_from_inventory_row,
+)
+
+from grocery_assistant_mcp.core.waste_helpers import (
+    should_create_food_waste_record,
+    build_food_waste_record,
+)
+
+from grocery_assistant_mcp.core.intake_helpers import (
+    INTAKE_ENTRY_NUMERIC_FIELDS,
+    INTAKE_ITEM_NUMERIC_FIELDS,
+    clean_and_validate_intake_entry_fields,
+    clean_and_validate_intake_item_fields,
+    validate_intake_entry_updates,
+    validate_intake_item_updates,
+)
+
+from grocery_assistant_mcp.core.batch_meal_service import add_meal_with_items
+
+from grocery_assistant_mcp.core.batch_inventory_meal_service import (
+    add_meal_with_inventory_items,
 )
 
 from grocery_assistant_mcp.core.write_helpers import (
@@ -37,357 +108,21 @@ logger = logging.getLogger("grocery_mcp.grocery_data")
 
 
 # ---------------------------------------------------------------------
-# CSV schemas
-# ---------------------------------------------------------------------
-#
-# Design note:
-# - user_inventory.csv stores the user's tracked grocery stock state.
-#   It is not limited to food physically available right now.
-#
-# - A tracked inventory item may be available, low, very low, empty, out of
-#   stock, or expired but still physically present.
-#
-# - Keeping out-of-stock items can support future personalization, such as
-#   recognizing staples, common restock needs, frequently used ingredients,
-#   and low-priority items that do not need urgent replacement.
-#
-# - user_food_waste.csv is separate because it serves a different purpose:
-#   learning from meaningful waste outcomes. It records expired, spoiled,
-#   discarded, unused, overbought, or disliked food.
-#
-# - Data cleanup removals, duplicate records, incorrect records, test records,
-#   and normally used-up items should not be stored as food waste.
-#
-# - If an item is out of stock but still useful to remember, update its
-#   stock_status to "out" or "empty" instead of removing it.
-#
-# - If an item should no longer be tracked at all, remove it with
-#   remove_inventory_item().
-
-INVENTORY_COLUMNS = [
-    "stock_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "quantity",
-    "unit",
-    "servings_remaining",
-    "initial_quantity",
-    "initial_servings",
-    "stock_status",
-    "expiry_date",
-    "date_added",
-    "notes",
-]
-
-FOOD_WASTE_COLUMNS = [
-    "waste_id",
-    "stock_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "initial_quantity",
-    "initial_unit",
-    "initial_servings",
-    "quantity_wasted",
-    "unit",
-    "servings_wasted",
-    "estimated_quantity_consumed",
-    "estimated_servings_consumed",
-    "date_added",
-    "expiry_date",
-    "wasted_at",
-    "waste_type",
-    "waste_reason",
-    "tracking_confidence",
-    "notes",
-]
-
-INTAKE_HISTORY_COLUMNS = [
-    "intake_id",
-    "date",
-    "time",
-    "meal_type",
-    "meal_name",
-    "meal_description",
-    "source",
-    "amount_eaten",
-    "portion_confidence",
-    "total_calories_estimate",
-    "total_protein_g_estimate",
-    "total_carbs_g_estimate",
-    "total_fat_g_estimate",
-    "total_fibre_g_estimate",
-    "total_sugar_g_estimate",
-    "total_sodium_mg_estimate",
-    "nutrition_confidence",
-    "was_finished",
-    "leftovers_created",
-    "hunger_before",
-    "hunger_after",
-    "notes",
-]
-
-INTAKE_ITEMS_COLUMNS = [
-    "intake_item_id",
-    "intake_id",
-    "food_item",
-    "brand",
-    "category",
-    "source",
-    "stock_id",
-    "amount_eaten",
-    "quantity_used",
-    "unit",
-    "servings_used",
-    "calories_estimate",
-    "protein_g_estimate",
-    "carbs_g_estimate",
-    "fat_g_estimate",
-    "fibre_g_estimate",
-    "sugar_g_estimate",
-    "sodium_mg_estimate",
-    "nutrition_confidence",
-    "notes",
-]
-
-
-INVENTORY_CONSUMPTION_COLUMNS = [
-    "consumption_id",
-    "stock_id",
-    "intake_id",
-    "intake_item_id",
-    "food_item",
-    "brand",
-    "category",
-    "location",
-    "quantity_used",
-    "unit",
-    "servings_used",
-    "quantity_before",
-    "servings_before",
-    "quantity_after",
-    "servings_after",
-    "stock_status_before",
-    "stock_status_after",
-    "consumed_at",
-    "consumption_type",
-    "tracking_confidence",
-    "notes",
-]
-
-# ---------------------------------------------------------------------
-# Valid values
-# ---------------------------------------------------------------------
-
-VALID_STOCK_STATUSES = {
-    "in_stock",
-    "low",
-    "very_low",
-    "out",
-    "expired",
-}
-
-VALID_REMOVAL_TYPES = {
-    "used_up",
-    "expired",
-    "spoiled",
-    "discarded",
-    "unused",
-    "overbought",
-    "did_not_like",
-    "duplicate_entry",
-    "incorrect_entry",
-    "test_entry",
-    "no_longer_tracked",
-    "unknown",
-}
-
-WASTE_REMOVAL_TYPES = {
-    "expired",
-    "spoiled",
-    "discarded",
-    "unused",
-    "overbought",
-    "did_not_like",
-}
-
-VALID_TRACKING_CONFIDENCE = {
-    "low",
-    "medium",
-    "high",
-}
-
-VALID_MEAL_TYPES = {
-    "breakfast",
-    "brunch",
-    "lunch",
-    "dinner",
-    "snack",
-    "drink",
-    "dessert",
-    "supper",
-    "meal",
-    "other",
-    "unknown",
-}
-
-VALID_CONSUMPTION_TYPES = {
-    "consumed",
-    "used_in_cooking",
-    "finished",
-    "adjustment",
-    "other",
-}
-
-VALID_CONFIDENCE_LEVELS = {
-    "low",
-    "medium",
-    "high",
-    "unknown",
-}
-
-VALID_YES_NO_UNKNOWN = {
-    "yes",
-    "no",
-    "unknown",
-}
-
-VALID_FINISHED_STATUSES = {
-    "yes",
-    "no",
-    "partial",
-    "unknown",
-}
-
-
-# ---------------------------------------------------------------------
-# Small service helpers
-# ---------------------------------------------------------------------
-
-def today_iso() -> str:
-    """Return today's date in YYYY-MM-DD format."""
-    return date.today().isoformat()
-
-
-def to_float(value: object, default: float = 0.0) -> float:
-    """
-    Convert a CSV value to float.
-
-    Blank, missing, or invalid values return the supplied default.
-    """
-    if value is None:
-        return default
-
-    if str(value).strip() == "":
-        return default
-
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def validate_choice(value: object, valid_values: set[str], field_name: str) -> str:
-    """
-    Normalize and validate a string choice.
-
-    Returns the cleaned lowercase value.
-    """
-    cleaned = str(value or "").strip().lower()
-
-    if cleaned not in valid_values:
-        allowed = ", ".join(sorted(valid_values))
-        raise ValueError(f"{field_name} must be one of: {allowed}")
-
-    return cleaned
-
-
-def should_create_food_waste_record(removal_type: str) -> bool:
-    """
-    Return True when a removal type should create a food waste record.
-    """
-    removal_type = validate_required_choice(
-        removal_type,
-        VALID_REMOVAL_TYPES,
-        "removal_type",
-    )
-    return removal_type in WASTE_REMOVAL_TYPES
-
-
-def infer_stock_status(
-    quantity: float,
-    servings_remaining: float,
-    stock_status: str,
-) -> str:
-    """
-    Infer a safer stock_status from quantity and servings.
-
-    Canonical Version 1.3 statuses:
-    - in_stock: usable stock is available
-    - low: usable stock is running low
-    - very_low: usable stock is nearly depleted
-    - out: no usable stock remains, but the row may remain as a restock signal
-    - expired: food is expired but still physically present
-
-    This is intentionally conservative:
-    - quantity=0 and servings=0 changes available-like statuses to "out"
-    - positive quantity or servings changes "out" to "low"
-    - explicit "expired" is not silently overwritten
-    """
-    stock_status = clean_lower_text(stock_status, "stock_status") or "in_stock"
-
-    if quantity == 0 and servings_remaining == 0:
-        if stock_status in {"in_stock", "low", "very_low"}:
-            return "out"
-
-    if quantity > 0 or servings_remaining > 0:
-        if stock_status == "out":
-            return "low"
-
-    return stock_status
-
-
-def validate_inventory_stock_consistency(
-    quantity: float,
-    servings_remaining: float,
-    stock_status: str,
-) -> None:
-    """
-    Validate that quantity, servings_remaining, and stock_status are compatible.
-
-    This catches impossible or risky states while still allowing useful grocery
-    tracking states such as expired food that is still physically present.
-    """
-    validate_non_negative_number(quantity, "quantity")
-    validate_non_negative_number(servings_remaining, "servings_remaining")
-
-    if stock_status == "in_stock" and quantity == 0 and servings_remaining == 0:
-        raise ValueError(
-            "Items with quantity=0 and servings_remaining=0 should not have "
-            "stock_status='in_stock'."
-        )
-
-    if stock_status == "expired" and quantity == 0 and servings_remaining == 0:
-        raise ValueError(
-            "Expired items with no quantity or servings remaining should be removed "
-            "with removal_type='expired' instead of kept as active inventory."
-        )
-
-
-# ---------------------------------------------------------------------
 # Read helpers and read-only service functions
 # ---------------------------------------------------------------------
+
+
+
+
+
 
 
 def read_csv_file(path: Path) -> pd.DataFrame:
     """
     Read a CSV file into a pandas DataFrame.
 
-    If the file does not exist, return an empty DataFrame
-    instead of crashing the MCP server.
+    If the file does not exist, return an empty DataFrame instead of crashing
+    the MCP server.
     """
     if not path.exists():
         logger.warning("CSV file not found: %s", path)
@@ -399,87 +134,53 @@ def read_csv_file(path: Path) -> pd.DataFrame:
 def read_inventory() -> pd.DataFrame:
     """
     Read user_inventory.csv as the user's tracked grocery stock state.
-
-    This file supports current grocery awareness and future personalization.
-    It may include food that is currently available, running low, empty/out
-    of stock but intentionally kept as a restock signal, or expired but still
-    physically present.
-
-    Items should remain here when they are still useful for shopping,
-    planning, or habit recognition.
-
-    Items should be removed only when they are no longer useful to track,
-    were entered incorrectly, are duplicates/test data, or have been discarded
-    as waste.
     """
     return read_csv_file(INVENTORY_PATH)
 
 
 def read_food_waste() -> pd.DataFrame:
     """
-    Read the food waste CSV.
-
-    This can back a future grocery://food-waste MCP resource.
+    Read user_food_waste.csv.
     """
     return read_csv_file(FOOD_WASTE_PATH)
 
 
 def read_intake_history() -> pd.DataFrame:
     """
-    Read the intake history CSV.
-
-    This backs the grocery://intake-history MCP resource.
+    Read user_intake_history.csv.
     """
     return read_csv_file(INTAKE_HISTORY_PATH)
 
 
 def read_intake_items() -> pd.DataFrame:
     """
-    Read the intake items CSV.
-
-    This backs the grocery://intake-items MCP resource.
+    Read user_intake_items.csv.
     """
     return read_csv_file(INTAKE_ITEMS_PATH)
 
 
 def read_inventory_consumption() -> pd.DataFrame:
     """
-    Read the inventory consumption event log.
-
-    This file records inventory usage events, including inventory-only
-    consumption and intake-linked consumption.
+    Read user_inventory_consumption.csv.
     """
     return read_csv_file(INVENTORY_CONSUMPTION_PATH)
 
 
-def df_to_records(df: pd.DataFrame) -> list[dict]:
-    """
-    Convert a pandas DataFrame into a list of dictionaries.
-
-    This format is easy for MCP tools to return.
-    """
-    if df.empty:
-        return []
-
-    return df.fillna("").to_dict(orient="records")
 
 
-def to_json(data) -> str:
-    """
-    Convert Python data into formatted JSON text.
-
-    This is useful for MCP resources.
-    """
-    return json.dumps(data, indent=2, ensure_ascii=False)
 
 
-def _safe_text_series(df: pd.DataFrame, column: str) -> pd.Series:
-    """
-    Convert a text column into lowercase strings safely.
 
-    This avoids errors if some values are blank or missing.
-    """
-    return df[column].fillna("").astype(str).str.lower()
+
+
+
+
+
+
+
+
+
+
 
 
 def list_inventory_items(
@@ -1276,80 +977,6 @@ def get_recent_intake(
 
     return df_to_records(df)
 
-def _normalise_search_limit(limit: int, default: int = 20, maximum: int = 100) -> int:
-    """
-    Normalise a user-provided search limit.
-
-    The cap prevents very large MCP responses while still allowing broader
-    inspection when needed.
-    """
-    if limit is None:
-        return default
-
-    try:
-        limit_value = int(limit)
-    except (TypeError, ValueError):
-        raise ValueError("limit must be a positive integer.")
-
-    if limit_value < 1:
-        raise ValueError("limit must be at least 1.")
-
-    return min(limit_value, maximum)
-
-
-def _optional_clean_text(value: str | None, field_name: str) -> str:
-    """
-    Clean optional text search/filter values.
-    """
-    if value is None:
-        return ""
-
-    return str(value).strip()
-
-
-def _contains_query_mask(df: pd.DataFrame, columns: list[str], query: str) -> pd.Series:
-    """
-    Return a boolean mask where any selected column contains the query.
-
-    Matching is case-insensitive and literal, not regex-based.
-    """
-    if df.empty:
-        return pd.Series([], dtype=bool)
-
-    if not query:
-        return pd.Series([True] * len(df), index=df.index)
-
-    query = query.lower().strip()
-    existing_columns = [column for column in columns if column in df.columns]
-
-    if not existing_columns:
-        return pd.Series([False] * len(df), index=df.index)
-
-    mask = pd.Series([False] * len(df), index=df.index)
-
-    for column in existing_columns:
-        column_text = df[column].fillna("").astype(str).str.lower()
-        mask = mask | column_text.str.contains(query, regex=False, na=False)
-
-    return mask
-
-
-def _exact_text_mask(df: pd.DataFrame, column: str, value: str) -> pd.Series:
-    """
-    Return a case-insensitive exact-match mask for a text column.
-    """
-    if df.empty:
-        return pd.Series([], dtype=bool)
-
-    if not value:
-        return pd.Series([True] * len(df), index=df.index)
-
-    if column not in df.columns:
-        return pd.Series([False] * len(df), index=df.index)
-
-    return df[column].fillna("").astype(str).str.strip().str.lower() == value.lower()
-
-
 def save_related_csv_updates(
     operations: list[tuple[str, Path, pd.DataFrame, pd.DataFrame]],
 ) -> dict[str, str | None]:
@@ -1393,52 +1020,6 @@ def save_related_csv_updates(
 # ---------------------------------------------------------------------
 # Intake write service functions
 # ---------------------------------------------------------------------
-
-def id_exists(
-    df: pd.DataFrame,
-    id_column: str,
-    id_value: str,
-) -> bool:
-    """
-    Return True if an ID exists in a DataFrame.
-    """
-    if df.empty or id_column not in df.columns:
-        return False
-
-    cleaned_id = clean_text(id_value)
-
-    return (
-        df[id_column]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .eq(cleaned_id)
-        .any()
-    )
-
-
-def require_existing_id(
-    df: pd.DataFrame,
-    id_column: str,
-    id_value: str,
-    entity_name: str,
-) -> str:
-    """
-    Validate that an ID exists in a DataFrame.
-
-    Returns the cleaned ID.
-    """
-    cleaned_id = clean_text(id_value, id_column, required=True)
-
-    if id_column not in df.columns:
-        raise ValueError(
-            f"Cannot validate {entity_name} because '{id_column}' column is missing."
-        )
-
-    if not id_exists(df, id_column, cleaned_id):
-        raise ValueError(f"No {entity_name} found with {id_column}: {cleaned_id}")
-
-    return cleaned_id
 
 
 def intake_id_exists(intake_id: str) -> bool:
@@ -1525,62 +1106,29 @@ def add_intake_entry(
     Use add_intake_item() to attach optional ingredient/component rows to
     this meal through intake_id.
     """
-    date = clean_text(date, "date", required=True)
-    meal_name = clean_text(meal_name, "meal_name", required=True)
-    time = clean_text(time, "time")
-    meal_description = clean_text(meal_description)
-    source = clean_text(source)
-    amount_eaten = clean_text(amount_eaten)
-    hunger_before = clean_text(hunger_before)
-    hunger_after = clean_text(hunger_after)
-    notes = clean_text(notes)
-
-    validate_date_or_blank(date, "date")
-    validate_time_or_blank(time, "time")
-
-    meal_type = validate_required_choice(
-        meal_type,
-        VALID_MEAL_TYPES,
-        "meal_type",
+    entry_fields = clean_and_validate_intake_entry_fields(
+        date=date,
+        meal_name=meal_name,
+        time=time,
+        meal_type=meal_type,
+        meal_description=meal_description,
+        source=source,
+        amount_eaten=amount_eaten,
+        portion_confidence=portion_confidence,
+        total_calories_estimate=total_calories_estimate,
+        total_protein_g_estimate=total_protein_g_estimate,
+        total_carbs_g_estimate=total_carbs_g_estimate,
+        total_fat_g_estimate=total_fat_g_estimate,
+        total_fibre_g_estimate=total_fibre_g_estimate,
+        total_sugar_g_estimate=total_sugar_g_estimate,
+        total_sodium_mg_estimate=total_sodium_mg_estimate,
+        nutrition_confidence=nutrition_confidence,
+        was_finished=was_finished,
+        leftovers_created=leftovers_created,
+        hunger_before=hunger_before,
+        hunger_after=hunger_after,
+        notes=notes,
     )
-
-    portion_confidence = validate_choice_or_blank(
-        portion_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "portion_confidence",
-        default="unknown",
-    )
-
-    nutrition_confidence = validate_choice_or_blank(
-        nutrition_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "nutrition_confidence",
-        default="unknown",
-    )
-
-    was_finished = validate_choice_or_blank(
-        was_finished,
-        VALID_FINISHED_STATUSES,
-        "was_finished",
-        default="unknown",
-    )
-
-    leftovers_created = validate_choice_or_blank(
-        leftovers_created,
-        VALID_YES_NO_UNKNOWN,
-        "leftovers_created",
-        default="unknown",
-    )
-
-    numeric_values = validate_non_negative_fields({
-        "total_calories_estimate": total_calories_estimate,
-        "total_protein_g_estimate": total_protein_g_estimate,
-        "total_carbs_g_estimate": total_carbs_g_estimate,
-        "total_fat_g_estimate": total_fat_g_estimate,
-        "total_fibre_g_estimate": total_fibre_g_estimate,
-        "total_sugar_g_estimate": total_sugar_g_estimate,
-        "total_sodium_mg_estimate": total_sodium_mg_estimate,
-    })
 
     df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
 
@@ -1589,27 +1137,7 @@ def add_intake_entry(
 
     new_entry = {
         "intake_id": intake_id,
-        "date": date,
-        "time": time,
-        "meal_type": meal_type,
-        "meal_name": meal_name,
-        "meal_description": meal_description,
-        "source": source,
-        "amount_eaten": amount_eaten,
-        "portion_confidence": portion_confidence,
-        "total_calories_estimate": numeric_values["total_calories_estimate"],
-        "total_protein_g_estimate": numeric_values["total_protein_g_estimate"],
-        "total_carbs_g_estimate": numeric_values["total_carbs_g_estimate"],
-        "total_fat_g_estimate": numeric_values["total_fat_g_estimate"],
-        "total_fibre_g_estimate": numeric_values["total_fibre_g_estimate"],
-        "total_sugar_g_estimate": numeric_values["total_sugar_g_estimate"],
-        "total_sodium_mg_estimate": numeric_values["total_sodium_mg_estimate"],
-        "nutrition_confidence": nutrition_confidence,
-        "was_finished": was_finished,
-        "leftovers_created": leftovers_created,
-        "hunger_before": hunger_before,
-        "hunger_after": hunger_after,
-        "notes": notes,
+        **entry_fields,
     }
 
     backup_path = backup_csv(INTAKE_HISTORY_PATH)
@@ -1687,84 +1215,9 @@ def update_intake_entry(
     if not updates:
         raise ValueError("At least one field must be provided to update.")
 
-    text_fields = [
-        "date",
-        "time",
-        "meal_name",
-        "meal_description",
-        "source",
-        "amount_eaten",
-        "hunger_before",
-        "hunger_after",
-        "notes",
-    ]
+    updates = validate_intake_entry_updates(updates)
 
-    for field in text_fields:
-        if field in updates:
-            updates[field] = clean_text(
-                updates[field],
-                field,
-                required=(field in {"date", "meal_name"}),
-            )
-
-    if "date" in updates:
-        validate_required_date(updates["date"], "date")
-
-    if "time" in updates:
-        validate_time_or_blank(updates["time"], "time")
-
-    if "meal_type" in updates:
-        updates["meal_type"] = validate_required_choice(
-            updates["meal_type"],
-            VALID_MEAL_TYPES,
-            "meal_type",
-        )
-
-    if "portion_confidence" in updates:
-        updates["portion_confidence"] = validate_choice_or_blank(
-            updates["portion_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "portion_confidence",
-            default="unknown",
-        )
-
-    if "nutrition_confidence" in updates:
-        updates["nutrition_confidence"] = validate_choice_or_blank(
-            updates["nutrition_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "nutrition_confidence",
-            default="unknown",
-        )
-
-    if "was_finished" in updates:
-        updates["was_finished"] = validate_choice_or_blank(
-            updates["was_finished"],
-            VALID_FINISHED_STATUSES,
-            "was_finished",
-            default="unknown",
-        )
-
-    if "leftovers_created" in updates:
-        updates["leftovers_created"] = validate_choice_or_blank(
-            updates["leftovers_created"],
-            VALID_YES_NO_UNKNOWN,
-            "leftovers_created",
-            default="unknown",
-        )
-
-    numeric_fields = [
-        "total_calories_estimate",
-        "total_protein_g_estimate",
-        "total_carbs_g_estimate",
-        "total_fat_g_estimate",
-        "total_fibre_g_estimate",
-        "total_sugar_g_estimate",
-        "total_sodium_mg_estimate",
-    ]
-
-    for field in numeric_fields:
-        if field in updates:
-            updates[field] = validate_non_negative_number(updates[field], field)
+    numeric_fields = INTAKE_ENTRY_NUMERIC_FIELDS
 
     df = read_csv_for_write(INTAKE_HISTORY_PATH, INTAKE_HISTORY_COLUMNS)
 
@@ -1823,39 +1276,34 @@ def add_intake_item(
 
     Each row belongs to a parent meal/eating event in user_intake_history.csv
     through intake_id. Optional stock_id values are validated if supplied.
+
+    This function does not automatically deduct inventory.
     """
     intake_id = require_existing_intake_id(intake_id)
 
-    food_item = clean_text(food_item, "food_item", required=True)
-    brand = clean_text(brand, "brand")
-    category = clean_text(category, "category")
-    source = clean_text(source, "source")
-    stock_id = clean_text(stock_id, "stock_id")
-    amount_eaten = clean_text(amount_eaten, "amount_eaten")
-    unit = clean_text(unit, "unit")
-    notes = clean_text(notes, "notes")
-
-    if stock_id:
-        stock_id = require_existing_stock_id(stock_id)
-
-    nutrition_confidence = validate_choice_or_blank(
-        nutrition_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "nutrition_confidence",
-        default="unknown",
+    item_fields = clean_and_validate_intake_item_fields(
+        food_item=food_item,
+        brand=brand,
+        category=category,
+        source=source,
+        stock_id=stock_id,
+        amount_eaten=amount_eaten,
+        quantity_used=quantity_used,
+        unit=unit,
+        servings_used=servings_used,
+        calories_estimate=calories_estimate,
+        protein_g_estimate=protein_g_estimate,
+        carbs_g_estimate=carbs_g_estimate,
+        fat_g_estimate=fat_g_estimate,
+        fibre_g_estimate=fibre_g_estimate,
+        sugar_g_estimate=sugar_g_estimate,
+        sodium_mg_estimate=sodium_mg_estimate,
+        nutrition_confidence=nutrition_confidence,
+        notes=notes,
     )
 
-    numeric_values = validate_non_negative_fields({
-        "quantity_used": quantity_used,
-        "servings_used": servings_used,
-        "calories_estimate": calories_estimate,
-        "protein_g_estimate": protein_g_estimate,
-        "carbs_g_estimate": carbs_g_estimate,
-        "fat_g_estimate": fat_g_estimate,
-        "fibre_g_estimate": fibre_g_estimate,
-        "sugar_g_estimate": sugar_g_estimate,
-        "sodium_mg_estimate": sodium_mg_estimate,
-    })
+    if item_fields["stock_id"]:
+        item_fields["stock_id"] = require_existing_stock_id(item_fields["stock_id"])
 
     df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
 
@@ -1865,24 +1313,7 @@ def add_intake_item(
     new_item = {
         "intake_item_id": intake_item_id,
         "intake_id": intake_id,
-        "food_item": food_item,
-        "brand": brand,
-        "category": category,
-        "source": source,
-        "stock_id": stock_id,
-        "amount_eaten": amount_eaten,
-        "quantity_used": numeric_values["quantity_used"],
-        "unit": unit,
-        "servings_used": numeric_values["servings_used"],
-        "calories_estimate": numeric_values["calories_estimate"],
-        "protein_g_estimate": numeric_values["protein_g_estimate"],
-        "carbs_g_estimate": numeric_values["carbs_g_estimate"],
-        "fat_g_estimate": numeric_values["fat_g_estimate"],
-        "fibre_g_estimate": numeric_values["fibre_g_estimate"],
-        "sugar_g_estimate": numeric_values["sugar_g_estimate"],
-        "sodium_mg_estimate": numeric_values["sodium_mg_estimate"],
-        "nutrition_confidence": nutrition_confidence,
-        "notes": notes,
+        **item_fields,
     }
 
     backup_path = backup_csv(INTAKE_ITEMS_PATH)
@@ -1955,25 +1386,7 @@ def update_intake_item(
     if not updates:
         raise ValueError("At least one field must be provided to update.")
 
-    text_fields = [
-        "intake_id",
-        "food_item",
-        "brand",
-        "category",
-        "source",
-        "stock_id",
-        "amount_eaten",
-        "unit",
-        "notes",
-    ]
-
-    for field in text_fields:
-        if field in updates:
-            updates[field] = clean_text(
-                updates[field],
-                field,
-                required=(field in {"intake_id", "food_item"}),
-            )
+    updates = validate_intake_item_updates(updates)
 
     if "intake_id" in updates:
         updates["intake_id"] = require_existing_intake_id(updates["intake_id"])
@@ -1981,29 +1394,7 @@ def update_intake_item(
     if "stock_id" in updates and updates["stock_id"]:
         updates["stock_id"] = require_existing_stock_id(updates["stock_id"])
 
-    if "nutrition_confidence" in updates:
-        updates["nutrition_confidence"] = validate_choice_or_blank(
-            updates["nutrition_confidence"],
-            VALID_CONFIDENCE_LEVELS,
-            "nutrition_confidence",
-            default="unknown",
-        )
-
-    numeric_fields = [
-        "servings_used",
-        "quantity_used",
-        "calories_estimate",
-        "protein_g_estimate",
-        "carbs_g_estimate",
-        "fat_g_estimate",
-        "fibre_g_estimate",
-        "sugar_g_estimate",
-        "sodium_mg_estimate",
-    ]
-
-    for field in numeric_fields:
-        if field in updates:
-            updates[field] = validate_non_negative_number(updates[field], field)
+    numeric_fields = INTAKE_ITEM_NUMERIC_FIELDS
 
     df = read_csv_for_write(INTAKE_ITEMS_PATH, INTAKE_ITEMS_COLUMNS)
 
@@ -2112,51 +1503,6 @@ def remove_intake_entry(intake_id: str) -> dict:
     }
 
 
-def find_possible_inventory_duplicates(
-    df: pd.DataFrame,
-    food_item: str,
-    brand: str = "",
-    category: str = "",
-    location: str = "",
-    unit: str = "",
-    expiry_date: str = "",
-) -> list[dict]:
-    """
-    Find likely duplicate inventory rows.
-
-    This intentionally returns warnings instead of blocking duplicates because
-    duplicate-looking rows may be legitimate separate packages or batches.
-    """
-    if df.empty or "food_item" not in df.columns:
-        return []
-
-    food_item = clean_lower_text(food_item, "food_item", required=True)
-    brand = clean_lower_text(brand, "brand")
-    category = clean_lower_text(category, "category")
-    location = clean_lower_text(location, "location")
-    unit = clean_lower_text(unit, "unit")
-    expiry_date = clean_text(expiry_date, "expiry_date")
-
-    mask = _safe_text_series(df, "food_item") == food_item
-
-    if brand and "brand" in df.columns:
-        mask = mask & (_safe_text_series(df, "brand") == brand)
-
-    if category and "category" in df.columns:
-        mask = mask & (_safe_text_series(df, "category") == category)
-
-    if location and "location" in df.columns:
-        mask = mask & (_safe_text_series(df, "location") == location)
-
-    if unit and "unit" in df.columns:
-        mask = mask & (_safe_text_series(df, "unit") == unit)
-
-    if expiry_date and "expiry_date" in df.columns:
-        expiry_series = df["expiry_date"].fillna("").astype(str).str.strip()
-        mask = mask & (expiry_series == expiry_date)
-
-    return df_to_records(df[mask])
-
 def intake_item_id_exists(intake_item_id: str) -> bool:
     """
     Return True if an intake item record exists for the supplied intake_item_id.
@@ -2221,323 +1567,6 @@ def intake_entry_has_items(intake_id: str) -> bool:
 # ---------------------------------------------------------------------
 # Inventory consumption helpers
 # ---------------------------------------------------------------------
-
-def validate_consumption_amounts(
-    quantity_used: float = 0,
-    servings_used: float = 0,
-) -> dict[str, float]:
-    """
-    Validate inventory consumption amounts.
-
-    At least one consumption amount must be greater than zero. Both values are
-    allowed because some inventory items track physical quantity, servings, or both.
-    """
-    quantity_value = validate_non_negative_number(quantity_used, "quantity_used")
-    servings_value = validate_non_negative_number(servings_used, "servings_used")
-
-    if quantity_value == 0 and servings_value == 0:
-        raise ValueError(
-            "At least one of quantity_used or servings_used must be greater than 0."
-        )
-
-    return {
-        "quantity_used": quantity_value,
-        "servings_used": servings_value,
-    }
-
-
-def calculate_inventory_after_consumption(
-    inventory_item: dict,
-    quantity_used: float = 0,
-    servings_used: float = 0,
-) -> dict:
-    """
-    Calculate the inventory row state after controlled consumption.
-
-    This function performs no file writes. It only validates and returns the
-    updated inventory item dictionary.
-    """
-    consumption_values = validate_consumption_amounts(
-        quantity_used=quantity_used,
-        servings_used=servings_used,
-    )
-
-    current_quantity = validate_non_negative_number(
-        inventory_item.get("quantity", 0),
-        "quantity",
-    )
-    current_servings = validate_non_negative_number(
-        inventory_item.get("servings_remaining", 0),
-        "servings_remaining",
-    )
-
-    current_status = validate_choice(
-        inventory_item.get("stock_status", "in_stock") or "in_stock",
-        VALID_STOCK_STATUSES,
-        "stock_status",
-    )
-
-    final_quantity = current_quantity - consumption_values["quantity_used"]
-    final_servings = current_servings - consumption_values["servings_used"]
-
-    if final_quantity < 0:
-        raise ValueError("quantity_used cannot exceed current quantity.")
-
-    if final_servings < 0:
-        raise ValueError("servings_used cannot exceed current servings.")
-
-    # Avoid floating point residue such as 1.1102230246251565e-16.
-    final_quantity = max(final_quantity, 0.0)
-    final_servings = max(final_servings, 0.0)
-
-    if final_quantity == 0 and final_servings == 0:
-        final_status = "out"
-    else:
-        final_status = infer_stock_status(
-            quantity=final_quantity,
-            servings_remaining=final_servings,
-            stock_status=current_status,
-        )
-
-    final_status = validate_choice(
-        final_status,
-        VALID_STOCK_STATUSES,
-        "stock_status",
-    )
-
-    validate_inventory_stock_consistency(
-        quantity=final_quantity,
-        servings_remaining=final_servings,
-        stock_status=final_status,
-    )
-
-    updated_item = dict(inventory_item)
-    updated_item["quantity"] = final_quantity
-    updated_item["servings_remaining"] = final_servings
-    updated_item["stock_status"] = final_status
-
-    return updated_item
-
-
-def apply_inventory_consumption_to_df(
-    inventory_df: pd.DataFrame,
-    stock_id: str,
-    quantity_used: float = 0,
-    servings_used: float = 0,
-) -> tuple[pd.DataFrame, dict, dict, dict[str, float]]:
-    """
-    Apply controlled inventory consumption to an inventory DataFrame.
-
-    Returns:
-    - updated inventory DataFrame
-    - inventory item before consumption
-    - inventory item after consumption
-    - cleaned consumption amount values
-
-    This function performs no file writes.
-    """
-    stock_id = clean_text(stock_id, "stock_id", required=True)
-
-    if "stock_id" not in inventory_df.columns:
-        raise ValueError("Cannot consume inventory because 'stock_id' column is missing.")
-
-    matching_rows = inventory_df.index[
-        inventory_df["stock_id"].fillna("").astype(str).str.strip() == stock_id
-    ].tolist()
-
-    if not matching_rows:
-        raise ValueError(f"No inventory item found with stock_id: {stock_id}")
-
-    row_index = matching_rows[0]
-
-    consumption_values = validate_consumption_amounts(
-        quantity_used=quantity_used,
-        servings_used=servings_used,
-    )
-
-    inventory_before = inventory_df.loc[row_index].fillna("").to_dict()
-
-    inventory_after = calculate_inventory_after_consumption(
-        inventory_item=inventory_before,
-        quantity_used=consumption_values["quantity_used"],
-        servings_used=consumption_values["servings_used"],
-    )
-
-    updated_inventory_df = inventory_df.copy()
-
-    updated_inventory_df.at[row_index, "quantity"] = inventory_after["quantity"]
-    updated_inventory_df.at[row_index, "servings_remaining"] = inventory_after[
-        "servings_remaining"
-    ]
-    updated_inventory_df.at[row_index, "stock_status"] = inventory_after["stock_status"]
-
-    return (
-        updated_inventory_df,
-        inventory_before,
-        inventory_after,
-        consumption_values,
-    )
-
-def build_inventory_consumption_record(
-    consumption_df: pd.DataFrame,
-    inventory_before: dict,
-    inventory_after: dict,
-    quantity_used: float,
-    servings_used: float,
-    intake_id: str = "",
-    intake_item_id: str = "",
-    consumption_type: str = "consumed",
-    tracking_confidence: str = "medium",
-    notes: str = "",
-) -> dict:
-    """
-    Build an inventory consumption event record.
-
-    This function performs no file writes.
-    """
-    intake_id = clean_text(intake_id, "intake_id")
-    intake_item_id = clean_text(intake_item_id, "intake_item_id")
-    notes = clean_text(notes, "notes")
-
-    consumption_type = validate_choice_or_blank(
-        consumption_type,
-        VALID_CONSUMPTION_TYPES,
-        "consumption_type",
-        default="consumed",
-    )
-
-    tracking_confidence = validate_choice_or_blank(
-        tracking_confidence,
-        VALID_TRACKING_CONFIDENCE,
-        "tracking_confidence",
-        default="medium",
-    )
-
-    quantity_value = validate_non_negative_number(quantity_used, "quantity_used")
-    servings_value = validate_non_negative_number(servings_used, "servings_used")
-
-    existing_ids = consumption_df["consumption_id"].dropna().astype(str).tolist()
-    consumption_id = generate_next_id(
-        existing_ids,
-        prefix="consumption",
-        width=3,
-    )
-
-    return {
-        "consumption_id": consumption_id,
-        "stock_id": clean_text(inventory_before.get("stock_id", ""), "stock_id", required=True),
-        "intake_id": intake_id,
-        "intake_item_id": intake_item_id,
-        "food_item": clean_text(inventory_before.get("food_item", ""), "food_item"),
-        "brand": clean_text(inventory_before.get("brand", ""), "brand"),
-        "category": clean_text(inventory_before.get("category", ""), "category"),
-        "location": clean_text(inventory_before.get("location", ""), "location"),
-        "quantity_used": quantity_value,
-        "unit": clean_text(inventory_before.get("unit", ""), "unit"),
-        "servings_used": servings_value,
-        "quantity_before": to_float(inventory_before.get("quantity"), 0),
-        "servings_before": to_float(inventory_before.get("servings_remaining"), 0),
-        "quantity_after": to_float(inventory_after.get("quantity"), 0),
-        "servings_after": to_float(inventory_after.get("servings_remaining"), 0),
-        "stock_status_before": clean_text(inventory_before.get("stock_status", ""), "stock_status"),
-        "stock_status_after": clean_text(inventory_after.get("stock_status", ""), "stock_status"),
-        "consumed_at": today_iso(),
-        "consumption_type": consumption_type,
-        "tracking_confidence": tracking_confidence,
-        "notes": notes,
-    }
-
-
-def build_intake_item_from_inventory_row(
-    intake_items_df: pd.DataFrame,
-    intake_id: str,
-    inventory_item: dict,
-    amount_eaten: str = "",
-    quantity_used: float = 0,
-    servings_used: float = 0,
-    calories_estimate: float = 0,
-    protein_g_estimate: float = 0,
-    carbs_g_estimate: float = 0,
-    fat_g_estimate: float = 0,
-    fibre_g_estimate: float = 0,
-    sugar_g_estimate: float = 0,
-    sodium_mg_estimate: float = 0,
-    nutrition_confidence: str = "medium",
-    notes: str = "",
-) -> dict:
-    """
-    Build a child intake item from an inventory row.
-
-    This function performs no file writes. It creates the row dictionary only.
-    """
-    intake_id = clean_text(intake_id, "intake_id", required=True)
-    amount_eaten = clean_text(amount_eaten, "amount_eaten")
-    notes = clean_text(notes, "notes")
-
-    stock_id = clean_text(
-        inventory_item.get("stock_id", ""),
-        "stock_id",
-        required=True,
-    )
-
-    food_item = clean_text(
-        inventory_item.get("food_item", ""),
-        "food_item",
-        required=True,
-    )
-
-    brand = clean_text(inventory_item.get("brand", ""), "brand")
-    category = clean_text(inventory_item.get("category", ""), "category")
-    unit = clean_text(inventory_item.get("unit", ""), "unit")
-
-    nutrition_confidence = validate_choice_or_blank(
-        nutrition_confidence,
-        VALID_CONFIDENCE_LEVELS,
-        "nutrition_confidence",
-        default="unknown",
-    )
-
-    numeric_values = validate_non_negative_fields({
-        "quantity_used": quantity_used,
-        "servings_used": servings_used,
-        "calories_estimate": calories_estimate,
-        "protein_g_estimate": protein_g_estimate,
-        "carbs_g_estimate": carbs_g_estimate,
-        "fat_g_estimate": fat_g_estimate,
-        "fibre_g_estimate": fibre_g_estimate,
-        "sugar_g_estimate": sugar_g_estimate,
-        "sodium_mg_estimate": sodium_mg_estimate,
-    })
-
-    existing_ids = intake_items_df["intake_item_id"].dropna().astype(str).tolist()
-    intake_item_id = generate_next_id(
-        existing_ids,
-        prefix="intake_item",
-        width=3,
-    )
-
-    return {
-        "intake_item_id": intake_item_id,
-        "intake_id": intake_id,
-        "food_item": food_item,
-        "brand": brand,
-        "category": category,
-        "source": "inventory",
-        "stock_id": stock_id,
-        "amount_eaten": amount_eaten,
-        "quantity_used": numeric_values["quantity_used"],
-        "unit": unit,
-        "servings_used": numeric_values["servings_used"],
-        "calories_estimate": numeric_values["calories_estimate"],
-        "protein_g_estimate": numeric_values["protein_g_estimate"],
-        "carbs_g_estimate": numeric_values["carbs_g_estimate"],
-        "fat_g_estimate": numeric_values["fat_g_estimate"],
-        "fibre_g_estimate": numeric_values["fibre_g_estimate"],
-        "sugar_g_estimate": numeric_values["sugar_g_estimate"],
-        "sodium_mg_estimate": numeric_values["sodium_mg_estimate"],
-        "nutrition_confidence": nutrition_confidence,
-        "notes": notes,
-    }
 
 
 def consume_inventory_item(
@@ -3053,51 +2082,23 @@ def remove_inventory_item(
     waste_backup_path = None
 
     if create_waste:
-        current_quantity = validate_non_negative_number(removed_item.get("quantity", 0), "quantity")
-        current_servings = validate_non_negative_number(removed_item.get("servings_remaining", 0), "servings_remaining")
-
-        initial_quantity = to_float(removed_item.get("initial_quantity"), current_quantity)
-        initial_servings = to_float(removed_item.get("initial_servings"), current_servings)
-
-        final_quantity_wasted = (
-            current_quantity if quantity_wasted is None else validate_non_negative_number(quantity_wasted, "quantity_wasted")
-        )
-        final_servings_wasted = (
-            current_servings if servings_wasted is None else validate_non_negative_number(servings_wasted, "servings_wasted")
-        )
-
-        estimated_quantity_consumed = max(initial_quantity - final_quantity_wasted, 0)
-        estimated_servings_consumed = max(initial_servings - final_servings_wasted, 0)
-
         waste_df = read_csv_for_write(FOOD_WASTE_PATH, FOOD_WASTE_COLUMNS)
-        existing_waste_ids = waste_df["waste_id"].dropna().astype(str).tolist()
-        waste_id = generate_next_id(existing_waste_ids, prefix="waste", width=3)
 
-        waste_record = {
-            "waste_id": waste_id,
-            "stock_id": removed_item.get("stock_id", ""),
-            "food_item": removed_item.get("food_item", ""),
-            "brand": removed_item.get("brand", ""),
-            "category": removed_item.get("category", ""),
-            "location": removed_item.get("location", ""),
-            "initial_quantity": initial_quantity,
-            "initial_unit": removed_item.get("unit", ""),
-            "initial_servings": initial_servings,
-            "quantity_wasted": final_quantity_wasted,
-            "unit": removed_item.get("unit", ""),
-            "servings_wasted": final_servings_wasted,
-            "estimated_quantity_consumed": estimated_quantity_consumed,
-            "estimated_servings_consumed": estimated_servings_consumed,
-            "date_added": removed_item.get("date_added", ""),
-            "expiry_date": removed_item.get("expiry_date", ""),
-            "wasted_at": today_iso(),
-            "waste_type": removal_type,
-            "waste_reason": removal_reason,
-            "tracking_confidence": tracking_confidence,
-            "notes": notes,
-        }
+        waste_record = build_food_waste_record(
+            waste_df=waste_df,
+            removed_item=removed_item,
+            removal_type=removal_type,
+            removal_reason=removal_reason,
+            quantity_wasted=quantity_wasted,
+            servings_wasted=servings_wasted,
+            tracking_confidence=tracking_confidence,
+            notes=notes,
+        )
 
-        updated_waste_df = pd.concat([waste_df, pd.DataFrame([waste_record])], ignore_index=True)
+        updated_waste_df = pd.concat(
+            [waste_df, pd.DataFrame([waste_record])],
+            ignore_index=True,
+        )
 
     inventory_backup_path = backup_csv(INVENTORY_PATH)
     if create_waste:

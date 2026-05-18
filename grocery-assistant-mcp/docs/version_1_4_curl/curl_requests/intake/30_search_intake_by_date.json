@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 30,
+  "method": "tools/call",
+  "params": {
+    "name": "search_intake",
+    "arguments": {
+      "query": "",
+      "date": "2026-05-18",
+      "meal_type": "",
+      "limit": 20
+    }
+  }
+}
