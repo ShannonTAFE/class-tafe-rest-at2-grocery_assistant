@@ -42,6 +42,20 @@ A browser request to `/mcp` may return `406 Not Acceptable`.
 
 This is expected because the MCP endpoint expects MCP JSON-RPC requests, not normal browser page requests.
 
+## Opening MCP Inspector
+
+MCP Inspector is used as a local testing client for the Grocery Assistant MCP server.
+
+```powershell
+npx @modelcontextprotocol/inspector
+```
+It allows us to:
+
+- connect to the running MCP server
+- view registered tools, resources, and prompts
+- manually call MCP tools
+- inspect request and response payloads
+- confirm that tool behaviour matches the service-layer tests
 ---
 
 # MCP Inspector Checklist

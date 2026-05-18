@@ -1,2 +1,4 @@
 intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,quantity_used,unit,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
-intake_item_001,intake_001,Toast,,pantry,manual,,2 slices,0,,1,180,6,30,3,4,2,250,medium,Example intake component
+intake_item_001,intake_001,Toast,,pantry,manual,,2 slices,0.0,,1.0,180.0,6.0,30.0,3.0,4.0,2.0,250.0,medium,Example intake component
+intake_item_002,intake_004,Spaghetti,,pantry,home,,1 serve,100.0,g,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,Child item test
+intake_item_003,intake_004,Beef mince,,protein,home,,1 serve,125.0,g,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,Child item test
