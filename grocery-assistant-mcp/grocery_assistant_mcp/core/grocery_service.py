@@ -47,6 +47,14 @@ from grocery_assistant_mcp.core.service_utils import (
     exact_text_mask as _exact_text_mask,
 )
 
+from grocery_assistant_mcp.core.inventory_rules import (
+    infer_stock_status,
+    validate_inventory_stock_consistency,
+    find_possible_inventory_duplicates,
+)
+
+
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -83,64 +91,6 @@ def should_create_food_waste_record(removal_type: str) -> bool:
     return removal_type in WASTE_REMOVAL_TYPES
 
 
-def infer_stock_status(
-    quantity: float,
-    servings_remaining: float,
-    stock_status: str,
-) -> str:
-    """
-    Infer a safer stock_status from quantity and servings.
-
-    Canonical Version 1.3 statuses:
-    - in_stock: usable stock is available
-    - low: usable stock is running low
-    - very_low: usable stock is nearly depleted
-    - out: no usable stock remains, but the row may remain as a restock signal
-    - expired: food is expired but still physically present
-
-    This is intentionally conservative:
-    - quantity=0 and servings=0 changes available-like statuses to "out"
-    - positive quantity or servings changes "out" to "low"
-    - explicit "expired" is not silently overwritten
-    """
-    stock_status = clean_lower_text(stock_status, "stock_status") or "in_stock"
-
-    if quantity == 0 and servings_remaining == 0:
-        if stock_status in {"in_stock", "low", "very_low"}:
-            return "out"
-
-    if quantity > 0 or servings_remaining > 0:
-        if stock_status == "out":
-            return "low"
-
-    return stock_status
-
-
-def validate_inventory_stock_consistency(
-    quantity: float,
-    servings_remaining: float,
-    stock_status: str,
-) -> None:
-    """
-    Validate that quantity, servings_remaining, and stock_status are compatible.
-
-    This catches impossible or risky states while still allowing useful grocery
-    tracking states such as expired food that is still physically present.
-    """
-    validate_non_negative_number(quantity, "quantity")
-    validate_non_negative_number(servings_remaining, "servings_remaining")
-
-    if stock_status == "in_stock" and quantity == 0 and servings_remaining == 0:
-        raise ValueError(
-            "Items with quantity=0 and servings_remaining=0 should not have "
-            "stock_status='in_stock'."
-        )
-
-    if stock_status == "expired" and quantity == 0 and servings_remaining == 0:
-        raise ValueError(
-            "Expired items with no quantity or servings remaining should be removed "
-            "with removal_type='expired' instead of kept as active inventory."
-        )
 
 
 # ---------------------------------------------------------------------
@@ -148,12 +98,17 @@ def validate_inventory_stock_consistency(
 # ---------------------------------------------------------------------
 
 
+
+
+
+
+
 def read_csv_file(path: Path) -> pd.DataFrame:
     """
     Read a CSV file into a pandas DataFrame.
 
-    If the file does not exist, return an empty DataFrame
-    instead of crashing the MCP server.
+    If the file does not exist, return an empty DataFrame instead of crashing
+    the MCP server.
     """
     if not path.exists():
         logger.warning("CSV file not found: %s", path)
@@ -165,57 +120,50 @@ def read_csv_file(path: Path) -> pd.DataFrame:
 def read_inventory() -> pd.DataFrame:
     """
     Read user_inventory.csv as the user's tracked grocery stock state.
-
-    This file supports current grocery awareness and future personalization.
-    It may include food that is currently available, running low, empty/out
-    of stock but intentionally kept as a restock signal, or expired but still
-    physically present.
-
-    Items should remain here when they are still useful for shopping,
-    planning, or habit recognition.
-
-    Items should be removed only when they are no longer useful to track,
-    were entered incorrectly, are duplicates/test data, or have been discarded
-    as waste.
     """
     return read_csv_file(INVENTORY_PATH)
 
 
 def read_food_waste() -> pd.DataFrame:
     """
-    Read the food waste CSV.
-
-    This can back a future grocery://food-waste MCP resource.
+    Read user_food_waste.csv.
     """
     return read_csv_file(FOOD_WASTE_PATH)
 
 
 def read_intake_history() -> pd.DataFrame:
     """
-    Read the intake history CSV.
-
-    This backs the grocery://intake-history MCP resource.
+    Read user_intake_history.csv.
     """
     return read_csv_file(INTAKE_HISTORY_PATH)
 
 
 def read_intake_items() -> pd.DataFrame:
     """
-    Read the intake items CSV.
-
-    This backs the grocery://intake-items MCP resource.
+    Read user_intake_items.csv.
     """
     return read_csv_file(INTAKE_ITEMS_PATH)
 
 
 def read_inventory_consumption() -> pd.DataFrame:
     """
-    Read the inventory consumption event log.
-
-    This file records inventory usage events, including inventory-only
-    consumption and intake-linked consumption.
+    Read user_inventory_consumption.csv.
     """
     return read_csv_file(INVENTORY_CONSUMPTION_PATH)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1776,51 +1724,6 @@ def remove_intake_entry(intake_id: str) -> dict:
         "backup_created": str(backup_path) if backup_path else None,
     }
 
-
-def find_possible_inventory_duplicates(
-    df: pd.DataFrame,
-    food_item: str,
-    brand: str = "",
-    category: str = "",
-    location: str = "",
-    unit: str = "",
-    expiry_date: str = "",
-) -> list[dict]:
-    """
-    Find likely duplicate inventory rows.
-
-    This intentionally returns warnings instead of blocking duplicates because
-    duplicate-looking rows may be legitimate separate packages or batches.
-    """
-    if df.empty or "food_item" not in df.columns:
-        return []
-
-    food_item = clean_lower_text(food_item, "food_item", required=True)
-    brand = clean_lower_text(brand, "brand")
-    category = clean_lower_text(category, "category")
-    location = clean_lower_text(location, "location")
-    unit = clean_lower_text(unit, "unit")
-    expiry_date = clean_text(expiry_date, "expiry_date")
-
-    mask = _safe_text_series(df, "food_item") == food_item
-
-    if brand and "brand" in df.columns:
-        mask = mask & (_safe_text_series(df, "brand") == brand)
-
-    if category and "category" in df.columns:
-        mask = mask & (_safe_text_series(df, "category") == category)
-
-    if location and "location" in df.columns:
-        mask = mask & (_safe_text_series(df, "location") == location)
-
-    if unit and "unit" in df.columns:
-        mask = mask & (_safe_text_series(df, "unit") == unit)
-
-    if expiry_date and "expiry_date" in df.columns:
-        expiry_series = df["expiry_date"].fillna("").astype(str).str.strip()
-        mask = mask & (expiry_series == expiry_date)
-
-    return df_to_records(df[mask])
 
 def intake_item_id_exists(intake_item_id: str) -> bool:
     """

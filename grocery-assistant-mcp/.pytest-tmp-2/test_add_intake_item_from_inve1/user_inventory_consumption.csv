@@ -1,0 +1,2 @@
+consumption_id,stock_id,intake_id,intake_item_id,food_item,brand,category,location,quantity_used,unit,servings_used,quantity_before,servings_before,quantity_after,servings_after,stock_status_before,stock_status_after,consumed_at,consumption_type,tracking_confidence,notes
+consumption_001,inv_001,intake_001,intake_item_002,Chicken breast,Coles,protein,freezer,125.0,g,0.0,500.0,4.0,375.0,4.0,in_stock,in_stock,2026-05-18,consumed,medium,

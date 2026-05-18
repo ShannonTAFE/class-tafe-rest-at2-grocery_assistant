@@ -1,0 +1,5 @@
+intake_id,date,time,meal_type,meal_name,meal_description,source,amount_eaten,portion_confidence,total_calories_estimate,total_protein_g_estimate,total_carbs_g_estimate,total_fat_g_estimate,total_fibre_g_estimate,total_sugar_g_estimate,total_sodium_mg_estimate,nutrition_confidence,was_finished,leftovers_created,hunger_before,hunger_after,notes
+intake_001,2026-05-17,18:30,dinner,Chicken pasta,Dinner with chicken and pasta,home,1 bowl,medium,700,45,80,20,8,6,650,medium,yes,no,hungry,full,Home cooked test meal
+intake_002,2026-05-18,08:00,breakfast,Toast,Simple breakfast,home,2 slices,high,300,10,45,8,5,4,300,medium,yes,no,,,
+intake_003,2026-05-16,19:00,dinner,Spaghetti bolognese,Batch cooked spaghetti meal,home,1 large bowl,medium,760,42,86,25,8,10,650,medium,yes,yes,hungry,satisfied,Batch cooked meal
+intake_004,2026-05-15,12:30,lunch,Sushi takeaway,Takeaway lunch,takeaway,1 pack,medium,520,24,72,14,4,8,900,low,yes,no,,,Bought at work

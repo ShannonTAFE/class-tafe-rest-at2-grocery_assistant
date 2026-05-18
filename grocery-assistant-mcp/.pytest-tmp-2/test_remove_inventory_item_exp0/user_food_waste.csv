@@ -1,0 +1,2 @@
+waste_id,stock_id,food_item,brand,category,location,initial_quantity,initial_unit,initial_servings,quantity_wasted,unit,servings_wasted,estimated_quantity_consumed,estimated_servings_consumed,date_added,expiry_date,wasted_at,waste_type,waste_reason,tracking_confidence,notes
+waste_001,inv_001,Greek yoghurt,Chobani,dairy,fridge,1000.0,g,10.0,150.0,g,1.5,850.0,8.5,2026-05-18,2026-05-20,2026-05-18,expired,Expired before finishing,medium,Most of the tub was used

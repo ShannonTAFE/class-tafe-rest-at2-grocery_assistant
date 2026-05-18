@@ -1,0 +1,5 @@
+intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,quantity_used,unit,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
+intake_item_001,intake_001,Chicken breast,Coles,protein,inventory,inv_001,150g,150.0,g,1.0,250,35,0,6,0,0,120,medium,Used from fridge
+intake_item_002,intake_001,Pasta,San Remo,pantry,home,,1 cup,1.0,cup,1.0,300,10,60,2,4,2,20,medium,
+intake_item_003,intake_003,Beef mince,Coles,protein,inventory,inv_002,150g,150.0,g,1.0,320,28,0,22,0,0,90,medium,Used in sauce
+intake_item_004,intake_003,Spaghetti,San Remo,pantry,home,,1.5 cups,1.5,cups,1.0,360,12,75,2,5,3,20,medium,

@@ -1,0 +1,2 @@
+stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
+inv_001,Bread,,bakery,pantry,1.0,loaf,8.0,1.0,8.0,in_stock,2026-05-19,2026-05-18,
