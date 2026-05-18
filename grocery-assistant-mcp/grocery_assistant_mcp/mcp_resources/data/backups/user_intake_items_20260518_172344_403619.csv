@@ -1,1 +1,2 @@
 intake_item_id,intake_id,food_item,brand,category,source,stock_id,amount_eaten,quantity_used,unit,servings_used,calories_estimate,protein_g_estimate,carbs_g_estimate,fat_g_estimate,fibre_g_estimate,sugar_g_estimate,sodium_mg_estimate,nutrition_confidence,notes
+intake_item_001,intake_008,avocado,,,,inv_001,1,1.0,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,medium,i added this intake item

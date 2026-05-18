@@ -1,0 +1,110 @@
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "tools/call",
+  "params": {
+    "name": "add_meal_with_inventory_items",
+    "arguments": {
+      "meal_data": {
+        "date": "2026-05-18",
+        "time": "18:30",
+        "meal_type": "dinner",
+        "meal_name": "Spaghetti bolognese",
+        "meal_description": "Version 1.4C inventory-linked batch meal test",
+        "source": "home",
+        "amount_eaten": "1 large bowl",
+        "portion_confidence": "medium",
+        "total_calories_estimate": 760,
+        "total_protein_g_estimate": 42,
+        "total_carbs_g_estimate": 86,
+        "total_fat_g_estimate": 25,
+        "total_fibre_g_estimate": 8,
+        "total_sugar_g_estimate": 10,
+        "total_sodium_mg_estimate": 650,
+        "nutrition_confidence": "medium",
+        "was_finished": "yes",
+        "leftovers_created": "yes",
+        "hunger_before": "hungry",
+        "hunger_after": "full",
+        "notes": "Version 1.4C inventory-linked curl test"
+      },
+      "inventory_items": [
+        {
+          "stock_id": "inv_001",
+          "amount_eaten": "1 serving cooked pasta",
+          "quantity_used": 0.25,
+          "servings_used": 1,
+          "consumption_type": "used_in_cooking",
+          "tracking_confidence": "medium",
+          "calories_estimate": 220,
+          "protein_g_estimate": 8,
+          "carbs_g_estimate": 44,
+          "fat_g_estimate": 2,
+          "fibre_g_estimate": 3,
+          "sugar_g_estimate": 2,
+          "sodium_mg_estimate": 5,
+          "nutrition_confidence": "medium",
+          "notes": "Spaghetti used in batch meal"
+        },
+        {
+          "stock_id": "inv_002",
+          "amount_eaten": "100 g beef mince",
+          "quantity_used": 100,
+          "servings_used": 1,
+          "consumption_type": "used_in_cooking",
+          "tracking_confidence": "medium",
+          "calories_estimate": 250,
+          "protein_g_estimate": 26,
+          "carbs_g_estimate": 0,
+          "fat_g_estimate": 17,
+          "fibre_g_estimate": 0,
+          "sugar_g_estimate": 0,
+          "sodium_mg_estimate": 75,
+          "nutrition_confidence": "medium",
+          "notes": "Beef mince used in batch meal"
+        },
+        {
+          "stock_id": "inv_003",
+          "amount_eaten": "1 serving tomato sauce",
+          "quantity_used": 0.25,
+          "servings_used": 1,
+          "consumption_type": "used_in_cooking",
+          "tracking_confidence": "medium",
+          "calories_estimate": 90,
+          "protein_g_estimate": 2,
+          "carbs_g_estimate": 16,
+          "fat_g_estimate": 1,
+          "fibre_g_estimate": 3,
+          "sugar_g_estimate": 8,
+          "sodium_mg_estimate": 570,
+          "nutrition_confidence": "medium",
+          "notes": "Tomato sauce used in batch meal"
+        }
+      ],
+      "manual_items": [
+        {
+          "food_item": "Parmesan",
+          "brand": "",
+          "category": "dairy",
+          "source": "manual",
+          "amount_eaten": "small sprinkle",
+          "quantity_used": 10,
+          "unit": "g",
+          "servings_used": 1,
+          "calories_estimate": 45,
+          "protein_g_estimate": 4,
+          "carbs_g_estimate": 0,
+          "fat_g_estimate": 3,
+          "fibre_g_estimate": 0,
+          "sugar_g_estimate": 0,
+          "sodium_mg_estimate": 150,
+          "nutrition_confidence": "low",
+          "notes": "Manual topping; not tracked in inventory"
+        }
+      ],
+      "consumption_type": "used_in_cooking",
+      "tracking_confidence": "medium",
+      "notes": "Version 1.4C curl workflow"
+    }
+  }
+}

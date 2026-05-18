@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 31,
+  "method": "tools/call",
+  "params": {
+    "name": "search_intake",
+    "arguments": {
+      "query": "spaghetti",
+      "date": "",
+      "meal_type": "",
+      "limit": 20
+    }
+  }
+}

@@ -1,2 +1,1 @@
 waste_id,stock_id,food_item,brand,category,location,initial_quantity,initial_unit,initial_servings,quantity_wasted,unit,servings_wasted,estimated_quantity_consumed,estimated_servings_consumed,date_added,expiry_date,wasted_at,waste_type,waste_reason,tracking_confidence,notes
-waste_001,inv_007,Eggs,Brand G,Dairy,Fridge,12.0,pieces,12.0,12.0,pieces,12.0,0.0,0.0,2024-06-01,2024-07-10,2026-05-17,spoiled,spoiled,medium,test milk waste

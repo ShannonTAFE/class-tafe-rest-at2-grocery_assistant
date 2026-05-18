@@ -1,8 +1,0 @@
-{
-  "jsonrpc": "2.0",
-  "id": 17,
-  "method": "resources/read",
-  "params": {
-    "uri": "grocery://food-waste/expired"
-  }
-}

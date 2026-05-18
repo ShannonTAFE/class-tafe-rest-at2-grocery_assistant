@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "update_inventory_item",
+    "arguments": {
+      "stock_id": "inv_002",
+      "quantity": 100,
+      "servings_remaining": 1,
+      "stock_status": "low",
+      "notes": "Only a small amount left after batch cooking"
+    }
+  }
+}

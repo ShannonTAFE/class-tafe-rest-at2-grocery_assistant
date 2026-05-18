@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 52,
+  "method": "tools/call",
+  "params": {
+    "name": "update_inventory_item",
+    "arguments": {
+      "stock_id": "inv_999",
+      "quantity": 1,
+      "servings_remaining": 1,
+      "stock_status": "low",
+      "notes": "Invalid unknown stock_id test"
+    }
+  }
+}

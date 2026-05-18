@@ -1,3 +1,1 @@
 consumption_id,stock_id,intake_id,intake_item_id,food_item,brand,category,location,quantity_used,unit,servings_used,quantity_before,servings_before,quantity_after,servings_after,stock_status_before,stock_status_after,consumed_at,consumption_type,tracking_confidence,notes
-consumption_001,inv_001,intake_005,intake_item_004,Chicken Breast,Brand A,Meat,Fridge,100.0,g,1.0,500.0,3.33,400.0,2.33,in_stock,in_stock,2026-05-18,consumed,medium,Spaghetti inventory-linked test item
-consumption_002,inv_001,intake_006,intake_item_005,Chicken Breast,Brand A,Meat,Fridge,100.0,g,1.0,400.0,2.33,300.0,1.33,in_stock,in_stock,2026-05-18,consumed,medium,Spaghetti inventory-linked test item

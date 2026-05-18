@@ -1,0 +1,27 @@
+{
+  "jsonrpc": "2.0",
+  "id": 53,
+  "method": "tools/call",
+  "params": {
+    "name": "add_intake_entry",
+    "arguments": {
+      "date": "18-05-2026",
+      "meal_name": "Invalid date meal",
+      "time": "18:30",
+      "meal_type": "dinner",
+      "meal_description": "Testing invalid date validation",
+      "source": "home",
+      "amount_eaten": "1 bowl",
+      "portion_confidence": "medium",
+      "total_calories_estimate": 500,
+      "total_protein_g_estimate": 30,
+      "total_carbs_g_estimate": 60,
+      "total_fat_g_estimate": 15,
+      "total_fibre_g_estimate": 5,
+      "total_sugar_g_estimate": 8,
+      "total_sodium_mg_estimate": 500,
+      "nutrition_confidence": "medium",
+      "notes": "Invalid date format test"
+    }
+  }
+}
