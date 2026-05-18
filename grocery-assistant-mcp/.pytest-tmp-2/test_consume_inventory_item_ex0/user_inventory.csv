@@ -1,4 +1,0 @@
-stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
-inv_001,Chicken breast,Coles,protein,freezer,500,g,4,500,4,in_stock,2026-06-01,2026-05-10,Test chicken
-inv_002,Rice,,pantry,cupboard,1000,g,10,1000,10,in_stock,2027-01-01,2026-05-10,Test rice
-inv_003,Greek yoghurt,Chobani,dairy,fridge,0,tub,0,1,1,out,2026-05-20,2026-05-10,Nearly finished

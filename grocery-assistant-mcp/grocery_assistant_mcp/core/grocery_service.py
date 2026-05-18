@@ -35,7 +35,6 @@ from grocery_assistant_mcp.core.constants import (
 
 from grocery_assistant_mcp.core.service_utils import (
     today_iso,
-    to_float,
     validate_choice,
     df_to_records,
     to_json,
@@ -67,6 +66,11 @@ from grocery_assistant_mcp.core.consumption_helpers import (
     build_intake_item_from_inventory_row,
 )
 
+from grocery_assistant_mcp.core.waste_helpers import (
+    should_create_food_waste_record,
+    build_food_waste_record,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -86,23 +90,6 @@ from grocery_assistant_mcp.core.write_helpers import (
 )
 
 logger = logging.getLogger("grocery_mcp.grocery_data")
-
-
-
-
-
-def should_create_food_waste_record(removal_type: str) -> bool:
-    """
-    Return True when a removal type should create a food waste record.
-    """
-    removal_type = validate_required_choice(
-        removal_type,
-        VALID_REMOVAL_TYPES,
-        "removal_type",
-    )
-    return removal_type in WASTE_REMOVAL_TYPES
-
-
 
 
 # ---------------------------------------------------------------------
@@ -2270,51 +2257,23 @@ def remove_inventory_item(
     waste_backup_path = None
 
     if create_waste:
-        current_quantity = validate_non_negative_number(removed_item.get("quantity", 0), "quantity")
-        current_servings = validate_non_negative_number(removed_item.get("servings_remaining", 0), "servings_remaining")
-
-        initial_quantity = to_float(removed_item.get("initial_quantity"), current_quantity)
-        initial_servings = to_float(removed_item.get("initial_servings"), current_servings)
-
-        final_quantity_wasted = (
-            current_quantity if quantity_wasted is None else validate_non_negative_number(quantity_wasted, "quantity_wasted")
-        )
-        final_servings_wasted = (
-            current_servings if servings_wasted is None else validate_non_negative_number(servings_wasted, "servings_wasted")
-        )
-
-        estimated_quantity_consumed = max(initial_quantity - final_quantity_wasted, 0)
-        estimated_servings_consumed = max(initial_servings - final_servings_wasted, 0)
-
         waste_df = read_csv_for_write(FOOD_WASTE_PATH, FOOD_WASTE_COLUMNS)
-        existing_waste_ids = waste_df["waste_id"].dropna().astype(str).tolist()
-        waste_id = generate_next_id(existing_waste_ids, prefix="waste", width=3)
 
-        waste_record = {
-            "waste_id": waste_id,
-            "stock_id": removed_item.get("stock_id", ""),
-            "food_item": removed_item.get("food_item", ""),
-            "brand": removed_item.get("brand", ""),
-            "category": removed_item.get("category", ""),
-            "location": removed_item.get("location", ""),
-            "initial_quantity": initial_quantity,
-            "initial_unit": removed_item.get("unit", ""),
-            "initial_servings": initial_servings,
-            "quantity_wasted": final_quantity_wasted,
-            "unit": removed_item.get("unit", ""),
-            "servings_wasted": final_servings_wasted,
-            "estimated_quantity_consumed": estimated_quantity_consumed,
-            "estimated_servings_consumed": estimated_servings_consumed,
-            "date_added": removed_item.get("date_added", ""),
-            "expiry_date": removed_item.get("expiry_date", ""),
-            "wasted_at": today_iso(),
-            "waste_type": removal_type,
-            "waste_reason": removal_reason,
-            "tracking_confidence": tracking_confidence,
-            "notes": notes,
-        }
+        waste_record = build_food_waste_record(
+            waste_df=waste_df,
+            removed_item=removed_item,
+            removal_type=removal_type,
+            removal_reason=removal_reason,
+            quantity_wasted=quantity_wasted,
+            servings_wasted=servings_wasted,
+            tracking_confidence=tracking_confidence,
+            notes=notes,
+        )
 
-        updated_waste_df = pd.concat([waste_df, pd.DataFrame([waste_record])], ignore_index=True)
+        updated_waste_df = pd.concat(
+            [waste_df, pd.DataFrame([waste_record])],
+            ignore_index=True,
+        )
 
     inventory_backup_path = backup_csv(INVENTORY_PATH)
     if create_waste:

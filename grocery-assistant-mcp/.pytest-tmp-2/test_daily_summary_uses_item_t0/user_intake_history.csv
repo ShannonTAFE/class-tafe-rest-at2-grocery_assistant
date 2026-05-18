@@ -1,0 +1,3 @@
+intake_id,date,time,meal_type,meal_name,meal_description,source,amount_eaten,portion_confidence,total_calories_estimate,total_protein_g_estimate,total_carbs_g_estimate,total_fat_g_estimate,total_fibre_g_estimate,total_sugar_g_estimate,total_sodium_mg_estimate,nutrition_confidence,was_finished,leftovers_created,hunger_before,hunger_after,notes
+intake_001,2026-05-16,,breakfast,Toast with eggs,,,,medium,999.0,999.0,0.0,0.0,0.0,0.0,0.0,medium,unknown,unknown,,,
+intake_002,2026-05-16,,lunch,Chicken rice,,,,medium,500.0,35.0,0.0,0.0,0.0,0.0,0.0,medium,unknown,unknown,,,
