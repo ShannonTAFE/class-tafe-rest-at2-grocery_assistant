@@ -55,6 +55,11 @@ from grocery_assistant_mcp.core.inventory_rules import (
 
 from grocery_assistant_mcp.core.transaction_helpers import save_related_csv_updates
 
+from grocery_assistant_mcp.core.relationship_helpers import (
+    id_exists,
+    require_existing_id,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -1006,52 +1011,6 @@ def save_related_csv_updates(
 # ---------------------------------------------------------------------
 # Intake write service functions
 # ---------------------------------------------------------------------
-
-def id_exists(
-    df: pd.DataFrame,
-    id_column: str,
-    id_value: str,
-) -> bool:
-    """
-    Return True if an ID exists in a DataFrame.
-    """
-    if df.empty or id_column not in df.columns:
-        return False
-
-    cleaned_id = clean_text(id_value)
-
-    return (
-        df[id_column]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .eq(cleaned_id)
-        .any()
-    )
-
-
-def require_existing_id(
-    df: pd.DataFrame,
-    id_column: str,
-    id_value: str,
-    entity_name: str,
-) -> str:
-    """
-    Validate that an ID exists in a DataFrame.
-
-    Returns the cleaned ID.
-    """
-    cleaned_id = clean_text(id_value, id_column, required=True)
-
-    if id_column not in df.columns:
-        raise ValueError(
-            f"Cannot validate {entity_name} because '{id_column}' column is missing."
-        )
-
-    if not id_exists(df, id_column, cleaned_id):
-        raise ValueError(f"No {entity_name} found with {id_column}: {cleaned_id}")
-
-    return cleaned_id
 
 
 def intake_id_exists(intake_id: str) -> bool:
