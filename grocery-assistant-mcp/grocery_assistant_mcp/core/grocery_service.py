@@ -53,7 +53,7 @@ from grocery_assistant_mcp.core.inventory_rules import (
     find_possible_inventory_duplicates,
 )
 
-
+from grocery_assistant_mcp.core.transaction_helpers import save_related_csv_updates
 
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,

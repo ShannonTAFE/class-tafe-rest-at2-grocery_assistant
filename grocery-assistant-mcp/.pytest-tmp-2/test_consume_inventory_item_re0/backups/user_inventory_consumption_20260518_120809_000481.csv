@@ -1,1 +1,0 @@
-consumption_id,stock_id,intake_id,intake_item_id,food_item,brand,category,location,quantity_used,unit,servings_used,quantity_before,servings_before,quantity_after,servings_after,stock_status_before,stock_status_after,consumed_at,consumption_type,tracking_confidence,notes

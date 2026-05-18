@@ -1,2 +1,0 @@
-waste_id,stock_id,food_item,brand,category,location,initial_quantity,initial_unit,initial_servings,quantity_wasted,unit,servings_wasted,estimated_quantity_consumed,estimated_servings_consumed,date_added,expiry_date,wasted_at,waste_type,waste_reason,tracking_confidence,notes
-waste_001,inv_001,Yogurt,,dairy,fridge,2.0,tub,2.0,2.0,tub,2.0,0.0,0.0,2026-05-18,2026-05-20,2026-05-18,spoiled,Smelled bad before use,medium,

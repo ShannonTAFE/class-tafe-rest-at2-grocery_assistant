@@ -1,2 +1,0 @@
-stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
-inv_001,Test item did_not_like,,test,fridge,2.0,unit,2.0,2.0,2.0,in_stock,,2026-05-18,
