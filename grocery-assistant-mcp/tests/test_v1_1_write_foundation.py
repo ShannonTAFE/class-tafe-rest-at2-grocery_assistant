@@ -8,18 +8,8 @@ from grocery_assistant_mcp.core import grocery_service as gs
 
 
 @pytest.fixture()
-def temp_grocery_csv_paths(tmp_path, monkeypatch):
-    """Redirect grocery_service CSV paths to temporary test files."""
-    monkeypatch.setattr(gs, "INVENTORY_PATH", tmp_path / "user_inventory.csv")
-    monkeypatch.setattr(gs, "INTAKE_HISTORY_PATH", tmp_path / "user_intake_history.csv")
-    monkeypatch.setattr(gs, "INTAKE_ITEMS_PATH", tmp_path / "user_intake_items.csv")
-    monkeypatch.setattr(
-        gs,
-        "INVENTORY_CONSUMPTION_PATH",
-        tmp_path / "user_inventory_consumption.csv",
-    )
-    monkeypatch.setattr(gs, "FOOD_WASTE_PATH", tmp_path / "user_food_waste.csv")
-    return tmp_path
+def temp_grocery_csv_paths(grocery_csv_paths):
+    return grocery_csv_paths["INVENTORY_PATH"].parent
 
 
 def test_add_inventory_item_creates_valid_row(temp_grocery_csv_paths):
