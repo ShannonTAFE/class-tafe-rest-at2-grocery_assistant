@@ -10,6 +10,9 @@ from grocery_assistant_mcp.mcp_tools.consumption_tools import (
     register_consumption_tools,
 )
 
+from grocery_assistant_mcp.mcp_tools.batch_meal_tools import (
+    register_batch_meal_tools,
+)
 
 def register_tools(mcp: FastMCP) -> None:
     """
@@ -19,3 +22,4 @@ def register_tools(mcp: FastMCP) -> None:
     register_inventory_tools(mcp)
     register_intake_tools(mcp)
     register_consumption_tools(mcp)
+    register_batch_meal_tools(mcp)
