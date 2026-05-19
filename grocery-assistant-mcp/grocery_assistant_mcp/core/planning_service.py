@@ -36,6 +36,12 @@ from grocery_assistant_mcp.core.planning_helpers import (
 )
 
 VERSION = "1.5A"
+LOW_STOCK_REVIEW_VERSION = "1.5B"
+LOW_STOCK_REVIEW_SIGNAL_TYPES = {
+    "low_stock",
+    "very_low_stock",
+    "out_of_stock",
+}
 Signal = dict[str, Any]
 Warning = dict[str, Any]
 
@@ -190,6 +196,151 @@ def build_planning_context(
         metadata={
             "records_checked": records_checked,
             "reference_date": reference_date.isoformat(),
+        },
+    )
+
+
+def review_low_stock_items(
+    *,
+    include_low: bool = True,
+    include_very_low: bool = True,
+    include_out: bool = True,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """
+    Return a focused read-only review of low, very-low, and out-of-stock items.
+
+    Version 1.5B-A scope:
+    - reuse Version 1.5A inventory planning signals
+    - filter only stock-attention signals
+    - keep recommendations empty
+    - do not update inventory, create shopping-list records, or deduct stock
+    """
+    included_signal_types = _selected_low_stock_signal_types(
+        include_low=include_low,
+        include_very_low=include_very_low,
+        include_out=include_out,
+    )
+
+    planning_context = build_planning_context(
+        recent_days=1,
+        include_inventory=True,
+        include_recent_intake=False,
+        include_consumption=False,
+        include_waste=False,
+        today=today,
+    )
+
+    source_signals = planning_context.get("signals", {})
+    inventory_signals = source_signals.get("inventory_signals", [])
+
+    low_stock_signals = [
+        signal
+        for signal in inventory_signals
+        if signal.get("signal_type") in included_signal_types
+    ]
+
+    warnings = list(planning_context.get("warnings", []))
+
+    if not included_signal_types:
+        warnings.append(
+            build_warning(
+                warning_type="no_low_stock_filters_selected",
+                severity="low",
+                message="No low-stock signal filters were selected.",
+                agent_guidance=(
+                    "Ask the user which stock attention states they want to review, "
+                    "or call the tool again with at least one include flag enabled."
+                ),
+            )
+        )
+    elif not low_stock_signals:
+        warnings.append(
+            build_warning(
+                warning_type="no_low_stock_items",
+                severity="low",
+                message=(
+                    "No low, very-low, or out-of-stock inventory signals were found "
+                    "for the selected filters."
+                ),
+                agent_guidance=(
+                    "Do not tell the user they need to restock items unless another "
+                    "source of evidence supports that claim."
+                ),
+            )
+        )
+
+    next_actions = [
+        build_next_action(
+            action_type="review_planning_context",
+            label="Review full planning context",
+            tool_name="review_planning_context",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs broader inventory and recent-intake "
+                "context before making suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="update_inventory",
+            label="Update an inventory item",
+            tool_name="update_inventory_item",
+            requires_confirmation=True,
+            reason=(
+                "Use only after the user explicitly confirms a stock, quantity, "
+                "expiry, or note change."
+            ),
+        ),
+    ]
+
+    records_checked = planning_context.get("metadata", {}).get(
+        "records_checked",
+        {
+            "inventory": 0,
+            "intake_history": 0,
+            "intake_items": 0,
+            "consumption": 0,
+            "waste": 0,
+        },
+    )
+
+    reference_date = planning_context.get("metadata", {}).get(
+        "reference_date",
+        (today or date.today()).isoformat(),
+    )
+
+    summary = (
+        "Low-stock inventory review prepared with "
+        f"{len(low_stock_signals)} attention signal(s). No records were changed."
+    )
+
+    return build_standard_planning_response(
+        tool_name="review_low_stock_items",
+        summary=summary,
+        result_type="inventory_low_stock_review",
+        inputs={
+            "include_low": include_low,
+            "include_very_low": include_very_low,
+            "include_out": include_out,
+        },
+        signals={
+            "inventory_signals": low_stock_signals,
+            "intake_signals": [],
+            "consumption_signals": [],
+            "waste_signals": [],
+            "data_quality_signals": [],
+            "system_signals": [],
+        },
+        recommendations=[],
+        warnings=_sort_warnings(warnings),
+        next_actions=next_actions,
+        metadata={
+            "version": LOW_STOCK_REVIEW_VERSION,
+            "records_checked": records_checked,
+            "reference_date": reference_date,
+            "source_tool": "review_planning_context",
+            "filtered_signal_types": sorted(included_signal_types),
+            "selected_signal_count": len(low_stock_signals),
         },
     )
 
@@ -620,12 +771,33 @@ def _sort_warnings(warnings: list[Warning]) -> list[Warning]:
     )
 
 
+def _selected_low_stock_signal_types(
+    *,
+    include_low: bool,
+    include_very_low: bool,
+    include_out: bool,
+) -> set[str]:
+    """Return the low-stock signal types selected by the review flags."""
+    selected: set[str] = set()
+
+    if include_low:
+        selected.add("low_stock")
+
+    if include_very_low:
+        selected.add("very_low_stock")
+
+    if include_out:
+        selected.add("out_of_stock")
+
+    return selected
+
+
 def _build_default_next_actions() -> list[dict[str, Any]]:
     return [
         build_next_action(
             action_type="review_low_stock",
             label="Review low and very-low stock items",
-            tool_name="review_planning_context",
+            tool_name="review_low_stock_items",
             requires_confirmation=False,
             reason="This keeps the interaction read-only and helps inspect attention items.",
         ),

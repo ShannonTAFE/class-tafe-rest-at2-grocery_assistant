@@ -62,3 +62,17 @@ Key notes:
 - Added inventory-linked batch meal logging through `add_meal_with_inventory_items`.
 - Confirmed inventory deduction should occur only for explicitly selected inventory items.
 - Reset curl testing around a clean empty dataset and JSON response files.
+
+## Version 1.5A Closeout
+
+Version 1.5A introduced the first read-only planning signal foundation for the Grocery Assistant MCP project.
+
+The main output was `review_planning_context`, an MCP-facing tool that reads existing grocery records and returns structured planning signals, data-quality notes, records-checked metadata, and safety metadata.
+
+A key architectural decision was to separate source records from derived planning signals. CSV files remain the source of truth, while the planning layer derives temporary context for agent reasoning.
+
+The version intentionally avoided meal recommendations, shopping list generation, preference learning, and automatic write actions. This protects the project from moving into recommendation logic before the signal contract is stable.
+
+MCP Inspector confirmed the tool is visible and callable. Tests now protect the response contract, read-only behaviour, safety metadata, and the rule that `recommendations` remains empty in Version 1.5A.
+
+Version 1.5A is now closed and ready to support Version 1.5B.

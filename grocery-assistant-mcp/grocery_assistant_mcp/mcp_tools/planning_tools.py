@@ -1,4 +1,4 @@
-"""MCP planning tools for Grocery Assistant MCP Version 1.5A."""
+"""MCP planning tools for Grocery Assistant MCP Version 1.5."""
 
 from __future__ import annotations
 
@@ -7,7 +7,10 @@ from typing import Annotated
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
-from grocery_assistant_mcp.core.planning_service import build_planning_context
+from grocery_assistant_mcp.core.planning_service import (
+    build_planning_context,
+    review_low_stock_items as review_low_stock_items_service,
+)
 
 
 def register_planning_tools(mcp: FastMCP) -> None:
@@ -73,4 +76,43 @@ def register_planning_tools(mcp: FastMCP) -> None:
             include_recent_intake=include_recent_intake,
             include_consumption=include_consumption,
             include_waste=include_waste,
+        )
+
+    @mcp.tool()
+    def review_low_stock_items(
+        include_low: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include inventory signals where stock_status is low."
+                )
+            ),
+        ] = True,
+        include_very_low: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include inventory signals where stock_status is very_low."
+                )
+            ),
+        ] = True,
+        include_out: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include inventory signals where stock_status is out."
+                )
+            ),
+        ] = True,
+    ) -> dict:
+        """
+        Return a read-only focused review of low, very-low, and out-of-stock inventory items.
+
+        This tool reuses the planning signal layer. It does not update inventory,
+        create shopping-list records, deduct stock, or save recommendations.
+        """
+        return review_low_stock_items_service(
+            include_low=include_low,
+            include_very_low=include_very_low,
+            include_out=include_out,
         )

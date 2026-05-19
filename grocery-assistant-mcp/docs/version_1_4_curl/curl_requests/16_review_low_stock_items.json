@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "method": "tools/call",
+  "params": {
+    "name": "review_low_stock_items",
+    "arguments": {
+      "include_low": true,
+      "include_very_low": true,
+      "include_out": true
+    }
+  }
+}
