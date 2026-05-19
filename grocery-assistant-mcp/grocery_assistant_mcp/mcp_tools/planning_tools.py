@@ -9,6 +9,7 @@ from pydantic import Field
 
 from grocery_assistant_mcp.core.planning_service import (
     build_planning_context,
+    review_inventory_data_quality as review_inventory_data_quality_service,
     review_low_stock_items as review_low_stock_items_service,
     review_use_soon_items as review_use_soon_items_service,
 )
@@ -166,3 +167,51 @@ def register_planning_tools(mcp: FastMCP) -> None:
             include_invalid_expiry_date=include_invalid_expiry_date,
         )
 
+
+    @mcp.tool()
+    def review_inventory_data_quality(
+        include_missing_stock_status: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals for missing or unknown stock_status values."
+                )
+            ),
+        ] = True,
+        include_missing_quantity: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals where both quantity and servings_remaining are missing or unavailable."
+                )
+            ),
+        ] = True,
+        include_no_expiry_data: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals for inventory items missing expiry dates."
+                )
+            ),
+        ] = True,
+        include_invalid_expiry_date: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals for inventory items with invalid expiry dates."
+                )
+            ),
+        ] = True,
+    ) -> dict:
+        """
+        Return a read-only focused review of inventory data-quality issues.
+
+        This tool reuses the planning signal layer. It does not update inventory,
+        infer corrections automatically, mutate records, or save recommendations.
+        """
+        return review_inventory_data_quality_service(
+            include_missing_stock_status=include_missing_stock_status,
+            include_missing_quantity=include_missing_quantity,
+            include_no_expiry_data=include_no_expiry_data,
+            include_invalid_expiry_date=include_invalid_expiry_date,
+        )

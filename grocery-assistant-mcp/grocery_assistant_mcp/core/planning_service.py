@@ -51,6 +51,13 @@ USE_SOON_DATA_QUALITY_SIGNAL_TYPES = {
     "no_expiry_data",
     "invalid_expiry_date",
 }
+DATA_QUALITY_REVIEW_VERSION = "1.5B"
+DATA_QUALITY_REVIEW_SIGNAL_TYPES = {
+    "missing_stock_status",
+    "missing_quantity",
+    "no_expiry_data",
+    "invalid_expiry_date",
+}
 Signal = dict[str, Any]
 Warning = dict[str, Any]
 
@@ -539,6 +546,176 @@ def review_use_soon_items(
     )
 
 
+def review_inventory_data_quality(
+    *,
+    include_missing_stock_status: bool = True,
+    include_missing_quantity: bool = True,
+    include_no_expiry_data: bool = True,
+    include_invalid_expiry_date: bool = True,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """
+    Return a focused read-only review of inventory data-quality signals.
+
+    Version 1.5B-C scope:
+    - reuse Version 1.5A inventory data-quality signals
+    - focus on missing or weak inventory fields
+    - keep recommendations empty
+    - do not update inventory or infer corrections automatically
+    """
+    selected_signal_types = _selected_inventory_data_quality_signal_types(
+        include_missing_stock_status=include_missing_stock_status,
+        include_missing_quantity=include_missing_quantity,
+        include_no_expiry_data=include_no_expiry_data,
+        include_invalid_expiry_date=include_invalid_expiry_date,
+    )
+
+    planning_context = build_planning_context(
+        recent_days=1,
+        include_inventory=True,
+        include_recent_intake=False,
+        include_consumption=False,
+        include_waste=False,
+        today=today,
+    )
+
+    source_signals = planning_context.get("signals", {})
+    data_quality_signals = source_signals.get("data_quality_signals", [])
+
+    selected_data_quality_signals = [
+        signal
+        for signal in data_quality_signals
+        if signal.get("domain") == "data_quality"
+        and signal.get("signal_type") in selected_signal_types
+    ]
+
+    warnings = list(planning_context.get("warnings", []))
+
+    if not selected_signal_types:
+        warnings.append(
+            build_warning(
+                warning_type="no_data_quality_filters_selected",
+                severity="low",
+                message="No inventory data-quality signal filters were selected.",
+                agent_guidance=(
+                    "Ask the user which data-quality states they want to review, "
+                    "or call the tool again with at least one include flag enabled."
+                ),
+            )
+        )
+    elif not selected_data_quality_signals:
+        warnings.append(
+            build_warning(
+                warning_type="no_inventory_data_quality_issues",
+                severity="low",
+                message=(
+                    "No selected inventory data-quality issues were found. "
+                    "This does not prove all inventory data is perfect; it only means "
+                    "the selected signal checks did not find issues."
+                ),
+                agent_guidance=(
+                    "Do not overclaim that the inventory is fully clean. You may say "
+                    "no selected data-quality issues were found."
+                ),
+            )
+        )
+
+    next_actions = [
+        build_next_action(
+            action_type="review_planning_context",
+            label="Review full planning context",
+            tool_name="review_planning_context",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs broader inventory and recent-intake "
+                "context before making suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="review_low_stock",
+            label="Review low and very-low stock items",
+            tool_name="review_low_stock_items",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs stock-attention context before "
+                "making restock or careful-use suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="review_use_soon",
+            label="Review expiring and missing-expiry inventory items",
+            tool_name="review_use_soon_items",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs expiry-related context before "
+                "making use-soon or waste-reduction suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="update_inventory",
+            label="Update an inventory item",
+            tool_name="update_inventory_item",
+            requires_confirmation=True,
+            reason=(
+                "Use only after the user explicitly confirms a stock, quantity, "
+                "expiry, or note change."
+            ),
+        ),
+    ]
+
+    records_checked = planning_context.get("metadata", {}).get(
+        "records_checked",
+        {
+            "inventory": 0,
+            "intake_history": 0,
+            "intake_items": 0,
+            "consumption": 0,
+            "waste": 0,
+        },
+    )
+
+    reference_date = planning_context.get("metadata", {}).get(
+        "reference_date",
+        (today or date.today()).isoformat(),
+    )
+
+    summary = (
+        "Inventory data-quality review prepared with "
+        f"{len(selected_data_quality_signals)} issue signal(s). No records were changed."
+    )
+
+    return build_standard_planning_response(
+        tool_name="review_inventory_data_quality",
+        summary=summary,
+        result_type="inventory_data_quality_review",
+        inputs={
+            "include_missing_stock_status": include_missing_stock_status,
+            "include_missing_quantity": include_missing_quantity,
+            "include_no_expiry_data": include_no_expiry_data,
+            "include_invalid_expiry_date": include_invalid_expiry_date,
+        },
+        signals={
+            "inventory_signals": [],
+            "intake_signals": [],
+            "consumption_signals": [],
+            "waste_signals": [],
+            "data_quality_signals": selected_data_quality_signals,
+            "system_signals": [],
+        },
+        recommendations=[],
+        warnings=_sort_warnings(warnings),
+        next_actions=next_actions,
+        metadata={
+            "version": DATA_QUALITY_REVIEW_VERSION,
+            "records_checked": records_checked,
+            "reference_date": reference_date,
+            "source_tool": "review_planning_context",
+            "filtered_data_quality_signal_types": sorted(selected_signal_types),
+            "selected_signal_count": len(selected_data_quality_signals),
+        },
+    )
+
+
 def build_inventory_planning_signals(
     inventory_records: list[dict[str, Any]],
     *,
@@ -1020,6 +1197,31 @@ def _selected_use_soon_data_quality_signal_types(
     return selected
 
 
+def _selected_inventory_data_quality_signal_types(
+    *,
+    include_missing_stock_status: bool,
+    include_missing_quantity: bool,
+    include_no_expiry_data: bool,
+    include_invalid_expiry_date: bool,
+) -> set[str]:
+    """Return the inventory data-quality signal types selected by flags."""
+    selected: set[str] = set()
+
+    if include_missing_stock_status:
+        selected.add("missing_stock_status")
+
+    if include_missing_quantity:
+        selected.add("missing_quantity")
+
+    if include_no_expiry_data:
+        selected.add("no_expiry_data")
+
+    if include_invalid_expiry_date:
+        selected.add("invalid_expiry_date")
+
+    return selected
+
+
 def _build_default_next_actions() -> list[dict[str, Any]]:
     return [
         build_next_action(
@@ -1035,6 +1237,13 @@ def _build_default_next_actions() -> list[dict[str, Any]]:
             tool_name="review_use_soon_items",
             requires_confirmation=False,
             reason="This keeps the interaction read-only and helps inspect expiry-related attention items.",
+        ),
+        build_next_action(
+            action_type="review_inventory_data_quality",
+            label="Review inventory data-quality issues",
+            tool_name="review_inventory_data_quality",
+            requires_confirmation=False,
+            reason="This keeps the interaction read-only and helps inspect missing or weak inventory fields.",
         ),
         build_next_action(
             action_type="log_with_inventory_items",
