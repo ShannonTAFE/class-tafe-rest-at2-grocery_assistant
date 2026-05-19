@@ -1,32 +1,219 @@
-# Version 1.5C — Signal-Based Meal Suggestion Drafts
+# Version 1.5 — Planning Intelligence and Signal-Based Recommendations
+
+**Status:** Version 1.5A, 1.5B, and 1.5C implemented and committed  
+**Last updated:** 2026-05-19  
+**Mode:** Read-only planning, recommendation drafts, and decision support
+
+---
 
 ## Purpose
 
-Version 1.5C introduces basic meal opportunity drafting from current grocery inventory signals.
+Version 1.5 moves the Grocery Assistant MCP project from simple record access toward safe planning intelligence.
 
-This version does not attempt full recipe generation, weekly meal planning, nutrition optimisation, or automatic shopping-list creation. Instead, it creates explainable meal suggestion drafts from inventory signals such as item availability, use-soon status, low stock, inferred food roles, and simple meal templates.
+The purpose of this version is to help an LLM agent reason from grocery records without silently changing records.
 
-The main goal is to begin moving the assistant from simple record lookup toward useful recommendation behaviour while keeping the logic deterministic, transparent, and testable.
+Version 1.5 planning tools may:
 
-## Why meal suggestions come before restock suggestions
+```text
+review
+summarise
+rank
+suggest
+draft
+explain
+warn
+```
 
-A restock-first system risks becoming a simple replacement checklist:
+They must not silently mutate:
 
-- rice is low, buy rice
-- milk is out, buy milk
-- eggs are low, buy eggs
+```text
+inventory records
+intake records
+intake item records
+inventory consumption records
+waste records
+shopping list records
+```
 
-That is useful, but limited.
+Any write action should continue to route through explicit, tested write tools and should require clear user intent.
 
-A meal-first signal system can eventually make restock suggestions more meaningful:
+---
 
-- rice is low and supports several possible meals
-- cheese is optional but would improve wraps, omelettes, and pasta meals
-- tomato is missing, but chicken wraps are still possible without it
+## Core Design Rule
 
-This means restocking can later be connected to meal usefulness instead of only inventory status.
+Every Version 1.5 planning tool should answer:
 
-## Core function
+```text
+What does the agent need to know before giving advice?
+```
+
+It should not answer:
+
+```text
+What should the system automatically change?
+```
+
+This keeps Version 1.5 as a decision-support layer rather than an automation layer.
+
+---
+
+## Version 1.5 Architecture
+
+The planning intelligence path is:
+
+```text
+source CSV records
+↓
+service-layer read functions
+↓
+planning and recommendation helpers
+↓
+structured planning signals
+↓
+draft suggestions / warnings / next actions
+↓
+LLM agent explanation
+↓
+explicit user confirmation before any write
+```
+
+Source records should remain clean. They store user state and user events.
+
+Derived planning signals should be generated at runtime rather than stored directly into the source CSV files unless a future version explicitly designs a signal-history store.
+
+---
+
+## Completed Version 1.5 Stages
+
+## Version 1.5A — Planning Signal Foundation
+
+### Goal
+
+Create the reusable planning layer before building individual suggestion tools.
+
+### Main deliverable
+
+```text
+review_planning_context
+```
+
+### Purpose
+
+`review_planning_context` gives the agent a structured overview of the user's grocery context before it suggests anything.
+
+It can expose:
+
+```text
+inventory signals
+recent intake context
+data-quality signals
+warnings
+safe next actions
+read-only safety metadata
+records checked metadata
+```
+
+### Key implementation ideas
+
+Version 1.5A separates planning logic from direct grocery write logic.
+
+Recommended module responsibilities:
+
+```text
+core/planning_helpers.py
+  Small reusable functions for interpreting records and creating signals.
+
+core/planning_service.py
+  Builds planning responses by reading records, generating signals, adding warnings,
+  and preserving safety metadata.
+
+mcp_tools/planning_tools.py
+  Thin MCP wrappers that delegate to the service layer.
+```
+
+### Boundary
+
+Version 1.5A does not recommend meals, create shopping lists, deduct inventory, or log intake. It only prepares planning context.
+
+---
+
+## Version 1.5B — Focused Inventory Planning Reviews
+
+### Goal
+
+Create focused read-only review tools that reuse the Version 1.5A planning signal layer.
+
+### Completed focused tools
+
+```text
+review_low_stock_items
+review_use_soon_items
+review_inventory_data_quality
+```
+
+### Purpose
+
+These tools allow the agent to ask narrower planning questions without manually parsing the full planning context each time.
+
+### Tool responsibilities
+
+```text
+review_low_stock_items
+  Reviews low, very low, out-of-stock, and related stock-attention signals.
+
+review_use_soon_items
+  Reviews expiry-related signals such as use-soon, expired, missing expiry,
+  and invalid expiry data.
+
+review_inventory_data_quality
+  Reviews inventory data-quality signals such as missing or invalid fields.
+```
+
+### Boundary
+
+Version 1.5B tools are review tools, not recommendation tools.
+
+They should return structured signals, warnings, safety metadata, and next-action guidance. They should not create shopping-list rows, update inventory, infer corrections automatically, or deduct stock.
+
+---
+
+## Version 1.5C — Signal-Based Meal Suggestion Drafts
+
+### Goal
+
+Create basic meal opportunity drafts from current inventory signals.
+
+### Main deliverable
+
+```text
+draft_meal_suggestions
+```
+
+### Why meal suggestions came before restock suggestions
+
+The project considered whether restock suggestions should come before meal suggestions.
+
+The final decision was to build meal opportunity drafts first because restocking is more useful when it is connected to what the user might actually eat.
+
+A restock-first system can become a simple checklist:
+
+```text
+rice is low → buy rice
+milk is out → buy milk
+eggs are low → buy eggs
+```
+
+A meal-first signal system can later produce more useful restock reasoning:
+
+```text
+rice is low and supports several possible meals
+cheese is optional but would improve wraps, omelettes, and pasta meals
+tomato is missing, but chicken wraps are still possible without it
+```
+
+This makes future shopping suggestions meal-aware rather than purely stock-status-driven.
+
+### Core function
 
 ```python
 draft_meal_suggestions(
@@ -36,54 +223,65 @@ draft_meal_suggestions(
     max_suggestions=5,
     use_soon_days=3,
 )
-Behaviour
+```
+
+### Behaviour
 
 The function:
 
-Reads current inventory.
-Builds availability signals.
-Builds freshness and use-soon signals.
-Infers simple food roles.
-Matches available items against simple meal templates.
-Adds low/out-of-stock gap hints.
-Scores each suggestion by priority and confidence.
-Returns a structured recommendation object.
-Does not modify any records.
-Signal types used
-Inventory availability signals
+```text
+reads current inventory
+builds availability signals
+builds freshness and use-soon signals
+infers simple food roles
+matches available items against simple meal templates
+adds low/out-of-stock gap hints
+scores each suggestion by priority and confidence
+returns a structured recommendation object
+does not modify any records
+```
+
+### Signal types used
+
+#### Inventory availability signals
 
 These describe whether an item can be used in a meal.
 
 Examples:
 
+```text
 available
 low
 very_low
 out
 expired
 unknown
+```
 
-Out-of-stock and expired items are not used as main meal ingredients.
+Out-of-stock and expired items should not be used as main meal ingredients.
 
-Freshness signals
+#### Freshness signals
 
-These describe whether an item should be prioritised due to expiry.
+These describe whether an item should be prioritised because of expiry.
 
 Examples:
 
-use-soon
+```text
+use_soon
 expired
-missing expiry date
-invalid expiry date
+missing_expiry_date
+invalid_expiry_date
+```
 
-Use-soon items increase meal suggestion priority. Missing or invalid expiry dates lower data confidence but do not block suggestions.
+Use-soon items increase meal suggestion priority. Missing or invalid expiry data may lower confidence but should not block meal suggestions.
 
-Meal role signals
+#### Meal role signals
 
 Items are assigned simple food roles from category and item-name keywords.
 
 Example roles:
 
+```text
 protein
 base
 bread_wrap
@@ -93,51 +291,77 @@ dairy
 sauce
 seasoning
 unknown
+```
 
-This role layer helps the assistant reason about meal opportunities without needing a full recipe database.
+This role layer lets the assistant reason about meal opportunities without requiring a full recipe database.
 
-Meal templates
+### Initial meal templates
 
-Version 1.5C uses simple templates rather than full recipes.
+Version 1.5C uses simple meal templates rather than full recipes.
 
 Initial templates include:
 
+```text
 rice bowl
 pasta meal
 wrap or sandwich
 omelette or eggs
 salad bowl
+```
 
-Each template defines a required role, supporting roles, optional roles, and a minimum number of supporting matches.
+Each template defines:
 
-Gap-tolerant logic
+```text
+required role
+supporting roles
+optional roles
+minimum supporting matches
+```
+
+### Gap-tolerant logic
 
 A missing or low optional item should not block a meal suggestion.
 
-For example:
+Example:
 
+```text
 Chicken wraps may still be possible with chicken and wraps even if cheese is low.
+```
 
-Suggestions include:
+Meal suggestions may include:
 
+```text
 main_items_used
 use_soon_items_used
 low_items_used
 missing_or_low_items
 gap_hints
 still_possible_without_missing_items
-Priority and confidence
+priority
+confidence
+reason
+restock_hint
+```
 
-Priority means how useful or urgent the suggestion is.
+### Priority and confidence
 
-Confidence means how strongly the available data supports the suggestion.
+Priority means:
 
-A suggestion can be high priority but only medium confidence if it uses a use-soon item but has limited supporting ingredient data.
+```text
+How useful or urgent is this suggestion?
+```
 
-Output shape
+Confidence means:
 
-The tool returns:
+```text
+How strongly does the available data support this suggestion?
+```
 
+A suggestion can be high priority but medium confidence if it uses a use-soon item but has limited supporting ingredient data.
+
+### Output shape
+
+```json
 {
   "tool_name": "draft_meal_suggestions",
   "summary": "Prepared meal suggestion drafts from current inventory signals. No records were changed.",
@@ -154,118 +378,124 @@ The tool returns:
   "suggestions": [],
   "warnings": []
 }
-Boundaries
+```
+
+### Boundary
 
 Version 1.5C does not:
 
+```text
 generate full recipes
 write shopping-list records
 create meal plans
 optimise calories or macros
 use external recipe APIs
 learn long-term preferences
-perform machine learning recommendation
-
-These remain future opportunities.
-
-Completion criteria
-
-Version 1.5C is complete when:
-
-draft_meal_suggestions exists as a service function
-the function is read-only
-simple food roles are inferred
-simple meal templates are matched
-expired/out-of-stock items are excluded from main ingredients
-low/out-of-stock items can appear as gap hints
-use-soon items increase priority
-suggestions include priority, confidence, reason, and restock hint
-tests cover empty inventory, use-soon items, low-stock gaps, out-of-stock exclusion, expired exclusion, missing expiry data, and max suggestion limits
-the MCP tool is registered and inspectable
+perform machine-learning recommendation
+log intake
+deduct inventory
+```
 
 ---
 
-# 7. Future thinking plan
+## Current Version 1.5 Tool Set
 
-Add this to your roadmap or future plans document.
+The active Version 1.5 planning/suggestion tools are:
 
-```md
-# Future Direction After Version 1.5C
+```text
+review_planning_context
+review_low_stock_items
+review_use_soon_items
+review_inventory_data_quality
+draft_meal_suggestions
+```
 
-## Version 1.5D — Restock Draft Suggestions From Meal Gaps
+All of these should remain read-only.
 
-After meal opportunity drafts exist, restock suggestions should be informed by meal usefulness.
+---
 
-Instead of suggesting items only because they are low or out of stock, the assistant should consider whether the item supports current or likely meals.
+## Testing and Closeout Expectations
 
-Example:
+Version 1.5A should be covered by:
 
-- rice is low and supports chicken rice bowls
-- cheese is low and improves wraps, omelettes, and pasta meals
-- soy sauce is out and would improve rice bowl suggestions
+```text
+planning helper tests
+planning service response-shape tests
+planning context contract tests
+no-mutation tests
+MCP Inspector checks
+```
 
-This creates better shopping-list intelligence because groceries are linked to meals rather than isolated inventory rows.
+Version 1.5B should be covered by focused review tests for:
 
-## Version 1.5E — Shopping List Drafts
+```text
+low-stock review
+use-soon review
+inventory data-quality review
+empty result handling
+filter behaviour
+read-only safety metadata
+```
 
-Once restock suggestions are explainable, the assistant can draft a shopping list.
+Version 1.5C should be covered by tests for:
 
-The shopping list should still be a draft at first. It should not automatically write records unless the user confirms.
+```text
+empty inventory
+use-soon item creates high-priority meal suggestion
+out-of-stock items are excluded from main ingredients
+expired items are excluded from main ingredients
+low-stock items can appear as gap hints
+missing expiry data does not block suggestions
+max_suggestions is respected
+```
 
-Possible structure:
+Final closeout check:
 
-- essential items
-- meal-supporting items
-- optional improvements
-- replacement items
-- low-priority pantry items
+```powershell
+pytest -q
+```
 
-## Version 1.6 — User Preference and Meal Feedback Signals
+Manual MCP Inspector checks should confirm that each planning tool appears and returns:
 
-The assistant should eventually learn from:
+```text
+status: success
+stable result_type
+signals block
+warnings block
+read-only / no-mutation behaviour
+```
 
-- meals the user actually eats
-- meals the user ignores
-- repeated purchases
-- frequent waste
-- disliked suggestions
-- preferred meal types
-- common staples
+---
 
-This should not require perfect user input. The system should work with partial and imperfect records.
+## Next Recommended Stage
 
-## Version 1.7 — Nutrition-Aware Opportunities
+The next planned stage is:
 
-Nutrition should be introduced after meal suggestions and restock logic are stable.
+```text
+Version 1.5D — Restock and shopping-list draft suggestions informed by meal gaps
+```
 
-Possible future signals:
+This should use the meal opportunity layer created in Version 1.5C.
 
-- protein opportunity
-- fibre opportunity
-- vegetable opportunity
-- calorie-light option
-- higher-energy option
-- balanced meal opportunity
+The goal is not simply:
 
-These should be presented gently and optionally, not as strict diet rules.
+```text
+low item → buy item
+```
 
-## Version 1.8 — Cost and Waste-Aware Recommendations
+The goal is:
 
-Future versions can rank meal suggestions by:
+```text
+item supports useful meals → consider restocking
+item is optional for multiple meal opportunities → suggest as optional
+item is out but not connected to likely meals → lower priority
+```
 
-- use-soon priority
-- cost efficiency
-- waste reduction
-- number of available ingredients
-- number of missing ingredients
-- user enjoyment
-- nutrition value
-
-This would move the assistant closer to a practical household food decision system.
+---
 
 ## Long-Term Direction
 
-The project should evolve toward a signal-first grocery intelligence layer:
+The project should continue evolving toward a signal-first grocery intelligence layer:
 
 ```text
 records
@@ -283,24 +513,14 @@ shopping-list drafts
 user feedback
 ↓
 better future recommendations
+```
 
 The assistant should avoid depending on perfect CSV data. Missing, low-confidence, or incomplete data should reduce confidence rather than breaking the recommendation flow.
 
-
 ---
 
-# Suggested implementation order
+## Documentation Notes
 
-Use this order:
+The detailed planning/proposal/patch documents for Version 1.5A and 1.5B can be moved to archive once their key decisions are represented in this consolidated Version 1.5 document.
 
-```text
-1. Add meal_suggestion_helpers.py
-2. Add draft_meal_suggestions() to grocery_service.py
-3. Add tests/test_draft_meal_suggestions.py
-4. Run targeted tests
-5. Fix helper logic if needed
-6. Run full pytest suite
-7. Register MCP tool
-8. Test in MCP Inspector
-9. Add documentation
-10. Commit as Version 1.5C initial implementation
+Keep this document as the active Version 1.5 overview and closeout reference.

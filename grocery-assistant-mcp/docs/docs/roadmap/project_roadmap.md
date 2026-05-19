@@ -180,22 +180,211 @@ Non-goals:
 
 # Version 1.5 — Planning Intelligence
 
-Possible goals:
+Goal:
 
-- meal suggestions from available inventory
-- restock suggestions
-- low-stock review
-- food waste pattern review
-- simple shopping list draft support
-- meal planning prompts based on inventory and recent intake
+```text
+Add read-heavy planning and suggestion tools that help the assistant reason from inventory,
+intake, consumption, and waste records without silently mutating records.
+```
+
+Completed stages:
+
+```text
+Version 1.5A — Planning signal foundation
+Version 1.5B — Focused inventory planning reviews
+Version 1.5C — Signal-based meal suggestion drafts
+```
+
+Next planned stage:
+
+```text
+Version 1.5D — Restock/shopping-list draft suggestions informed by meal gaps
+```
 
 Safety principle:
 
 ```text
-Suggestions can be intelligent, but writes should remain explicit.
+Suggestions can be intelligent, but writes must remain explicit.
 ```
 
-Inventory-changing actions should still route through tested tools.
+Inventory-changing, intake-changing, waste-changing, and shopping-list-changing actions should continue to route through tested write tools.
+
+---
+
+## Version 1.5A — Planning Signal Foundation
+
+Completed capability:
+
+```text
+review_planning_context
+```
+
+Purpose:
+
+```text
+Give the agent a structured planning overview before it suggests meals, restocks,
+shopping-list drafts, or next actions.
+```
+
+The planning context may include:
+
+```text
+inventory signals
+recent intake context
+data-quality signals
+warnings
+safe next actions
+read-only safety metadata
+records checked metadata
+```
+
+Key design decision:
+
+```text
+Planning signals are derived from source records. Source CSV files should remain clean
+and should not be overloaded as feature tables.
+```
+
+---
+
+## Version 1.5B — Focused Inventory Planning Reviews
+
+Completed focused tools:
+
+```text
+review_low_stock_items
+review_use_soon_items
+review_inventory_data_quality
+```
+
+Purpose:
+
+```text
+Let the agent inspect focused subsets of the planning signal layer without manually
+reading the entire planning context every time.
+```
+
+These tools are review tools, not recommendation or write tools.
+
+They should:
+
+```text
+reuse the planning context layer
+filter relevant signal groups
+return stable planning responses
+preserve read-only safety metadata
+include warnings and next-action guidance
+```
+
+They should not:
+
+```text
+update inventory
+create shopping-list records
+deduct inventory
+log intake
+create waste records
+infer corrections automatically
+```
+
+---
+
+## Version 1.5C — Signal-Based Meal Suggestion Drafts
+
+Completed capability:
+
+```text
+draft_meal_suggestions
+```
+
+Purpose:
+
+```text
+Draft basic meal opportunities from inventory signals, food role inference,
+simple meal templates, use-soon priority, and gap-tolerant matching.
+```
+
+Important design decision:
+
+```text
+Meal suggestions came before restock suggestions because restocking becomes more useful
+when it is linked to meals the user might actually eat.
+```
+
+The tool should produce explainable meal opportunity drafts, not full recipes.
+
+It may return:
+
+```text
+meal_name
+suggestion_type
+priority
+confidence
+main_items_used
+use_soon_items_used
+low_items_used
+missing_or_low_items
+gap_hints
+still_possible_without_missing_items
+reason
+restock_hint
+```
+
+Boundary:
+
+```text
+draft_meal_suggestions does not log meals, deduct inventory, create recipes,
+optimise nutrition, or write shopping-list records.
+```
+
+---
+
+## Version 1.5D — Restock and Shopping-List Draft Suggestions
+
+Planned capability:
+
+```text
+draft_restock_suggestions
+```
+
+Goal:
+
+```text
+Suggest restocks from inventory signals and meal-opportunity gaps.
+```
+
+This should avoid a simple stock-only checklist.
+
+Less useful:
+
+```text
+rice is low → buy rice
+```
+
+More useful:
+
+```text
+rice is low and supports several suggested meals
+```
+
+Potential source signals:
+
+```text
+low-stock inventory signals
+out-of-stock inventory signals
+expired replacement signals
+meal gap hints from draft_meal_suggestions
+usefulness across multiple meal opportunities
+```
+
+Boundary:
+
+```text
+This should still be draft-only. It should not create persistent shopping-list rows
+until a separate shopping-list write workflow exists and the user confirms the action.
+```
+
+---
 
 ## Agent and MCP Grocery Server Relationship
 
@@ -204,8 +393,6 @@ Version 1.5 introduces planning intelligence, but it does not change the core re
 The connected LLM agent is responsible for interpreting the user request, deciding which MCP tools or resources are useful, and communicating a helpful response to the user.
 
 The MCP grocery server is responsible for exposing safe, structured, project-aware data and actions.
-
-In this project, planning tools should not be viewed as replacing the agent's reasoning. Instead, they provide the agent with reliable planning signals that make its reasoning safer, more consistent, and easier to test.
 
 The relationship can be understood as:
 
@@ -216,7 +403,7 @@ MCP resources and service-layer functions
    ↓
 Version 1.5 planning tools
    ↓
-Structured planning signals
+Structured planning signals and draft suggestions
    ↓
 LLM agent reasoning and communication
    ↓
@@ -225,103 +412,27 @@ User confirmation
 Existing safe write tools, when needed
 ```
 
-The agent may be able to suggest meals, restocks, or shopping ideas by reading raw resources directly. However, relying on the agent to manually interpret all grocery records every time would make behaviour less consistent and harder to test.
+Planning tools do not replace the agent's reasoning. They prepare reliable evidence that makes the agent's reasoning safer, more consistent, and easier to test.
 
-Version 1.5 planning tools exist to prepare the ground for the agent.
-
-They help answer questions such as:
-
-```text
-Which inventory items are available?
-Which items are low, very low, out of stock, or expired?
-Which items should be used soon?
-Which recent meals should be avoided to reduce repetition?
-Which restock suggestions are high priority?
-Which meal suggestions are grounded in actual inventory?
-Which actions would require explicit user confirmation?
-```
-
-The tool prepares structured evidence.
-
-The agent turns that evidence into a useful conversation.
-
-For example, a meal suggestion tool may return:
-
-```json
-{
-  "meal_suggestions": [
-    {
-      "meal_name": "Chicken rice bowl",
-      "uses_inventory_items": [
-        {
-          "stock_id": "inv_002",
-          "food_item": "Chicken breast"
-        },
-        {
-          "stock_id": "inv_006",
-          "food_item": "Rice"
-        }
-      ],
-      "missing_optional_items": ["sauce", "fresh greens"],
-      "reason": "Uses available protein and pantry stock.",
-      "confidence": "high",
-      "safe_to_log_with_inventory_items": true,
-      "requires_user_confirmation_before_write": true
-    }
-  ]
-}
-```
-
-The LLM agent can then explain the recommendation naturally:
-
-```text
-A good option tonight is a chicken rice bowl. It uses chicken and rice from your inventory. Sauce or fresh greens would improve it, but they are optional.
-```
-
-If the user then asks to log the meal, the agent should route the action through an existing safe write workflow such as:
-
-```text
-add_meal_with_items
-add_meal_with_inventory_items
-```
-
-Version 1.5 planning tools should not directly create intake records, deduct inventory, create waste records, or persist shopping list records unless that behaviour has been explicitly designed, tested, and confirmed by the user.
-
-The core responsibility split is:
-
-```text
-Planning tools = prepare safe, structured evidence
-LLM agent = interpret, reason, and communicate
-Write tools = mutate records only after explicit user intent
-```
-
-This keeps Version 1.5 aligned with the existing project principle:
-
-```text
-Build safe, explicit write foundations before adding automation.
-```
+---
 
 ## Why Planning Tools Are Still Useful When the Agent Can Reason
 
-The LLM agent is capable of reasoning over grocery data, but project-specific tools provide several advantages.
-
 ### Consistency
 
-Planning rules can be defined once in the service layer instead of being reinterpreted differently in each conversation.
+Planning rules can be defined once in the service layer instead of being reinterpreted differently in every conversation.
 
-For example:
+Example:
 
 ```text
-low, very_low, out, and expired are inventory attention states.
+expired items should not be suggested as usable meal ingredients
 ```
-
-Once this rule is implemented in a planning function, every connected agent receives the same interpretation.
 
 ### Safety
 
-Planning tools can make safety boundaries explicit in their outputs.
+Planning tools can make safety boundaries explicit.
 
-For example:
+Example:
 
 ```json
 {
@@ -330,54 +441,43 @@ For example:
 }
 ```
 
-This helps prevent the agent from accidentally treating a suggestion as an action.
-
 ### Reduced Context Load
 
-As inventory, intake, consumption, and waste records grow, the agent should not need to inspect every row manually for every planning question.
+As inventory, intake, consumption, and waste records grow, the agent should not inspect every row manually for every planning question.
 
-A planning tool can condense raw records into useful signals such as:
-
-```text
-Top use-soon ingredients
-Low-stock staples
-Out-of-stock restock candidates
-Recent meals to avoid repeating
-Candidate ingredients for meal suggestions
-```
+Planning tools condense raw records into useful signals.
 
 ### Testability
 
-The behaviour of service-layer planning functions can be tested.
+Service-layer planning functions can be tested.
 
-For example, tests can verify that:
+Tests can verify that:
 
 ```text
-Expired items are not suggested as usable ingredients.
-Draft shopping list tools do not write to CSV files.
-Low-stock items are ranked consistently.
-Recent intake is considered when suggesting the next meal.
-Planning tools do not mutate inventory, intake, waste, or consumption records.
+expired items are excluded from usable meal ingredients
+draft shopping-list tools do not write to CSV files
+low-stock items are ranked consistently
+planning tools do not mutate inventory, intake, waste, or consumption records
 ```
-
-The agent's final wording may vary, but the tool output can remain predictable and testable.
 
 ### Project-Specific Intelligence
 
-The grocery assistant has rules and meanings that a general LLM may not infer reliably.
+The grocery assistant has rules that a general LLM may not infer reliably.
 
-For example:
+Example:
 
 ```text
 Out-of-stock inventory items are still useful records.
 They may represent staples, repeated purchases, or future restock candidates.
 ```
 
-Planning tools can preserve these project-specific meanings and provide them to the agent in a structured format.
+Planning tools preserve these meanings in a structured format.
+
+---
 
 ## Version 1.5 Design Rule
 
-Every Version 1.5 planning tool should answer this question:
+Every Version 1.5 planning tool should answer:
 
 ```text
 What does the agent need to know before giving advice?
@@ -389,20 +489,9 @@ It should not answer:
 What should the system automatically change?
 ```
 
-Version 1.5 is therefore a suggestion and decision-support layer, not an automation layer.
+Version 1.5 is a suggestion and decision-support layer, not an automation layer.
 
-Suggested planning tools may include:
-
-```text
-review_low_stock_items
-suggest_restock_items
-suggest_meals_from_inventory
-suggest_next_meal
-review_recent_intake_patterns
-draft_shopping_list
-```
-
-These tools may suggest, rank, explain, and draft.
+Version 1.5 tools may suggest, rank, explain, and draft.
 
 They should not silently mutate:
 
