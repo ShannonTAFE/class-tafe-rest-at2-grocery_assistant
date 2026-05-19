@@ -42,6 +42,15 @@ LOW_STOCK_REVIEW_SIGNAL_TYPES = {
     "very_low_stock",
     "out_of_stock",
 }
+USE_SOON_REVIEW_VERSION = "1.5B"
+USE_SOON_INVENTORY_SIGNAL_TYPES = {
+    "use_soon",
+    "expired",
+}
+USE_SOON_DATA_QUALITY_SIGNAL_TYPES = {
+    "no_expiry_data",
+    "invalid_expiry_date",
+}
 Signal = dict[str, Any]
 Warning = dict[str, Any]
 
@@ -341,6 +350,191 @@ def review_low_stock_items(
             "source_tool": "review_planning_context",
             "filtered_signal_types": sorted(included_signal_types),
             "selected_signal_count": len(low_stock_signals),
+        },
+    )
+
+
+def review_use_soon_items(
+    *,
+    include_use_soon: bool = True,
+    include_expired: bool = True,
+    include_no_expiry_data: bool = True,
+    include_invalid_expiry_date: bool = True,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """
+    Return a focused read-only review of expiry and use-soon inventory signals.
+
+    Version 1.5B-B scope:
+    - reuse Version 1.5A inventory planning signals
+    - filter expiry-related inventory and data-quality signals
+    - keep recommendations empty
+    - do not update inventory, create waste records, or deduct stock
+    """
+    selected_inventory_signal_types = _selected_use_soon_inventory_signal_types(
+        include_use_soon=include_use_soon,
+        include_expired=include_expired,
+    )
+    selected_data_quality_signal_types = _selected_use_soon_data_quality_signal_types(
+        include_no_expiry_data=include_no_expiry_data,
+        include_invalid_expiry_date=include_invalid_expiry_date,
+    )
+
+    planning_context = build_planning_context(
+        recent_days=1,
+        include_inventory=True,
+        include_recent_intake=False,
+        include_consumption=False,
+        include_waste=False,
+        today=today,
+    )
+
+    source_signals = planning_context.get("signals", {})
+    inventory_signals = source_signals.get("inventory_signals", [])
+    data_quality_signals = source_signals.get("data_quality_signals", [])
+
+    use_soon_inventory_signals = [
+        signal
+        for signal in inventory_signals
+        if signal.get("signal_type") in selected_inventory_signal_types
+    ]
+    use_soon_data_quality_signals = [
+        signal
+        for signal in data_quality_signals
+        if signal.get("signal_type") in selected_data_quality_signal_types
+    ]
+
+    selected_signal_count = len(use_soon_inventory_signals) + len(
+        use_soon_data_quality_signals
+    )
+    selected_signal_types = (
+        selected_inventory_signal_types | selected_data_quality_signal_types
+    )
+
+    warnings = list(planning_context.get("warnings", []))
+
+    if not selected_signal_types:
+        warnings.append(
+            build_warning(
+                warning_type="no_use_soon_filters_selected",
+                severity="low",
+                message="No use-soon or expiry signal filters were selected.",
+                agent_guidance=(
+                    "Ask the user which expiry states they want to review, or call "
+                    "the tool again with at least one include flag enabled."
+                ),
+            )
+        )
+    elif selected_signal_count == 0:
+        warnings.append(
+            build_warning(
+                warning_type="no_use_soon_items",
+                severity="low",
+                message=(
+                    "No use-soon, expired, missing-expiry, or invalid-expiry "
+                    "inventory signals were found for the selected filters."
+                ),
+                agent_guidance=(
+                    "Do not tell the user they have expiry-priority items unless "
+                    "another source of evidence supports that claim."
+                ),
+            )
+        )
+
+    next_actions = [
+        build_next_action(
+            action_type="review_planning_context",
+            label="Review full planning context",
+            tool_name="review_planning_context",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs broader inventory and recent-intake "
+                "context before making suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="review_low_stock",
+            label="Review low and very-low stock items",
+            tool_name="review_low_stock_items",
+            requires_confirmation=False,
+            reason=(
+                "Use this if the agent needs stock-attention context before "
+                "making restock or careful-use suggestions."
+            ),
+        ),
+        build_next_action(
+            action_type="update_inventory",
+            label="Update an inventory item",
+            tool_name="update_inventory_item",
+            requires_confirmation=True,
+            reason=(
+                "Use only after the user explicitly confirms a stock, quantity, "
+                "expiry, or note change."
+            ),
+        ),
+        build_next_action(
+            action_type="remove_inventory_item",
+            label="Remove an expired or incorrect inventory item",
+            tool_name="remove_inventory_item",
+            requires_confirmation=True,
+            reason=(
+                "Use only after the user explicitly confirms that an item should "
+                "be removed from inventory. Waste-related removals may also create "
+                "a waste record."
+            ),
+        ),
+    ]
+
+    records_checked = planning_context.get("metadata", {}).get(
+        "records_checked",
+        {
+            "inventory": 0,
+            "intake_history": 0,
+            "intake_items": 0,
+            "consumption": 0,
+            "waste": 0,
+        },
+    )
+
+    reference_date = planning_context.get("metadata", {}).get(
+        "reference_date",
+        (today or date.today()).isoformat(),
+    )
+
+    summary = (
+        "Use-soon inventory review prepared with "
+        f"{selected_signal_count} expiry-related signal(s). No records were changed."
+    )
+
+    return build_standard_planning_response(
+        tool_name="review_use_soon_items",
+        summary=summary,
+        result_type="inventory_use_soon_review",
+        inputs={
+            "include_use_soon": include_use_soon,
+            "include_expired": include_expired,
+            "include_no_expiry_data": include_no_expiry_data,
+            "include_invalid_expiry_date": include_invalid_expiry_date,
+        },
+        signals={
+            "inventory_signals": use_soon_inventory_signals,
+            "intake_signals": [],
+            "consumption_signals": [],
+            "waste_signals": [],
+            "data_quality_signals": use_soon_data_quality_signals,
+            "system_signals": [],
+        },
+        recommendations=[],
+        warnings=_sort_warnings(warnings),
+        next_actions=next_actions,
+        metadata={
+            "version": USE_SOON_REVIEW_VERSION,
+            "records_checked": records_checked,
+            "reference_date": reference_date,
+            "source_tool": "review_planning_context",
+            "filtered_inventory_signal_types": sorted(selected_inventory_signal_types),
+            "filtered_data_quality_signal_types": sorted(selected_data_quality_signal_types),
+            "selected_signal_count": selected_signal_count,
         },
     )
 
@@ -792,6 +986,40 @@ def _selected_low_stock_signal_types(
     return selected
 
 
+def _selected_use_soon_inventory_signal_types(
+    *,
+    include_use_soon: bool,
+    include_expired: bool,
+) -> set[str]:
+    """Return the expiry-related inventory signal types selected by flags."""
+    selected: set[str] = set()
+
+    if include_use_soon:
+        selected.add("use_soon")
+
+    if include_expired:
+        selected.add("expired")
+
+    return selected
+
+
+def _selected_use_soon_data_quality_signal_types(
+    *,
+    include_no_expiry_data: bool,
+    include_invalid_expiry_date: bool,
+) -> set[str]:
+    """Return the expiry-related data-quality signal types selected by flags."""
+    selected: set[str] = set()
+
+    if include_no_expiry_data:
+        selected.add("no_expiry_data")
+
+    if include_invalid_expiry_date:
+        selected.add("invalid_expiry_date")
+
+    return selected
+
+
 def _build_default_next_actions() -> list[dict[str, Any]]:
     return [
         build_next_action(
@@ -800,6 +1028,13 @@ def _build_default_next_actions() -> list[dict[str, Any]]:
             tool_name="review_low_stock_items",
             requires_confirmation=False,
             reason="This keeps the interaction read-only and helps inspect attention items.",
+        ),
+        build_next_action(
+            action_type="review_use_soon",
+            label="Review expiring and missing-expiry inventory items",
+            tool_name="review_use_soon_items",
+            requires_confirmation=False,
+            reason="This keeps the interaction read-only and helps inspect expiry-related attention items.",
         ),
         build_next_action(
             action_type="log_with_inventory_items",

@@ -10,6 +10,7 @@ from pydantic import Field
 from grocery_assistant_mcp.core.planning_service import (
     build_planning_context,
     review_low_stock_items as review_low_stock_items_service,
+    review_use_soon_items as review_use_soon_items_service,
 )
 
 
@@ -116,3 +117,52 @@ def register_planning_tools(mcp: FastMCP) -> None:
             include_very_low=include_very_low,
             include_out=include_out,
         )
+
+    @mcp.tool()
+    def review_use_soon_items(
+        include_use_soon: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include usable inventory items that expire within the use-soon window."
+                )
+            ),
+        ] = True,
+        include_expired: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include inventory items marked expired or with an expiry date in the past."
+                )
+            ),
+        ] = True,
+        include_no_expiry_data: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals for inventory items missing expiry dates."
+                )
+            ),
+        ] = True,
+        include_invalid_expiry_date: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Whether to include data-quality signals for inventory items with invalid expiry dates."
+                )
+            ),
+        ] = True,
+    ) -> dict:
+        """
+        Return a read-only focused review of use-soon, expired, and expiry-data inventory items.
+
+        This tool reuses the planning signal layer. It does not update inventory,
+        create waste records, deduct stock, or save recommendations.
+        """
+        return review_use_soon_items_service(
+            include_use_soon=include_use_soon,
+            include_expired=include_expired,
+            include_no_expiry_data=include_no_expiry_data,
+            include_invalid_expiry_date=include_invalid_expiry_date,
+        )
+

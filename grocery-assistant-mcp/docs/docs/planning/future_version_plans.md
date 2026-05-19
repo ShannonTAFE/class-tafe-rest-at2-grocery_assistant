@@ -41,11 +41,12 @@ Deferred:
 - reversal/undo workflows
 - nutrition recalculation engine
 
-```
+
 
 ---
 
 # Future Shopping List Support
+
 
 Possible files:
 

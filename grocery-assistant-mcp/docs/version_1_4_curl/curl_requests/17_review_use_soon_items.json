@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 17,
+  "method": "tools/call",
+  "params": {
+    "name": "review_use_soon_items",
+    "arguments": {
+      "include_use_soon": true,
+      "include_expired": true,
+      "include_no_expiry_data": true,
+      "include_invalid_expiry_date": true
+    }
+  }
+}
