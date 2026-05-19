@@ -193,12 +193,13 @@ Completed stages:
 Version 1.5A — Planning signal foundation
 Version 1.5B — Focused inventory planning reviews
 Version 1.5C — Signal-based meal suggestion drafts
+Version 1.5D — Restock/shopping-list draft suggestions informed by meal gaps
 ```
 
-Next planned stage:
+Next recommended refinement:
 
 ```text
-Version 1.5D — Restock/shopping-list draft suggestions informed by meal gaps
+Version 1.5E — Recommendation quality refinement
 ```
 
 Safety principle:
@@ -341,7 +342,7 @@ optimise nutrition, or write shopping-list records.
 
 ## Version 1.5D — Restock and Shopping-List Draft Suggestions
 
-Planned capability:
+Completed capability:
 
 ```text
 draft_restock_suggestions
@@ -350,10 +351,10 @@ draft_restock_suggestions
 Goal:
 
 ```text
-Suggest restocks from inventory signals and meal-opportunity gaps.
+Draft restock suggestions from inventory urgency and meal-opportunity gaps.
 ```
 
-This should avoid a simple stock-only checklist.
+Version 1.5D avoids a simple stock-only checklist.
 
 Less useful:
 
@@ -367,22 +368,78 @@ More useful:
 rice is low and supports several suggested meals
 ```
 
-Potential source signals:
+Source signals:
 
 ```text
 low-stock inventory signals
 out-of-stock inventory signals
 expired replacement signals
-meal gap hints from draft_meal_suggestions
+meal gap signals from draft_meal_suggestions
+generic role-gap signals
 usefulness across multiple meal opportunities
+```
+
+The tool may return:
+
+```text
+item_name
+candidate_type
+suggestion_type
+priority
+confidence
+current_status
+source_stock_ids
+role
+supports_meals
+reasons
+suggested_action
+would_create_shopping_list_record
+requires_user_confirmation_before_write
+```
+
+Key design decision:
+
+```text
+Version 1.5D creates shopping-list-shaped suggestions, not persistent shopping-list rows.
 ```
 
 Boundary:
 
 ```text
-This should still be draft-only. It should not create persistent shopping-list rows
-until a separate shopping-list write workflow exists and the user confirms the action.
+draft_restock_suggestions does not create shopping-list records, update inventory,
+deduct stock, log intake, or create waste records.
 ```
+
+Future shopping-list persistence should be handled by a separate explicit write workflow after user confirmation.
+
+---
+
+## Recommended Next Direction
+
+The next useful Version 1.5 refinement is:
+
+```text
+Version 1.5E — Recommendation quality refinement
+```
+
+Possible focus areas:
+
+```text
+improve food role inference
+improve meal-template coverage
+improve restock priority scoring
+improve confidence scoring
+improve generic role-gap explanations
+improve tolerance of incomplete CSV data
+```
+
+A later major version can introduce:
+
+```text
+Version 1.6 — Confirmed shopping-list workflow
+```
+
+That should be the point where persistent shopping-list records and shopping-list write tools are designed.
 
 ---
 

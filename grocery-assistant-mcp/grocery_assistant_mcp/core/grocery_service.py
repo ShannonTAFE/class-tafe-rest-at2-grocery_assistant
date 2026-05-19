@@ -89,6 +89,9 @@ from grocery_assistant_mcp.core.batch_inventory_meal_service import (
 from grocery_assistant_mcp.core.meal_suggestion_helpers import (
     build_meal_suggestion_draft,
 )
+from grocery_assistant_mcp.core.restock_helpers import (
+    build_restock_suggestion_draft,
+)
 
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
@@ -2167,6 +2170,48 @@ def draft_meal_suggestions(
         include_inventory_based=include_inventory_based,
         include_gap_hints=include_gap_hints,
         max_suggestions=max_suggestions,
+        use_soon_days=use_soon_days,
+        reference_date=reference_date,
+    )
+
+def draft_restock_suggestions(
+    include_low_stock: bool = True,
+    include_out_of_stock: bool = True,
+    include_expired_replacements: bool = True,
+    include_meal_gap_candidates: bool = True,
+    include_optional_upgrades: bool = True,
+    max_suggestions: int = 8,
+    max_meal_suggestions: int = 5,
+    use_soon_days: int = 3,
+    reference_date: str = "",
+) -> dict:
+    """
+    Draft restock and shopping-list suggestion ideas from current planning signals.
+
+    This function is read-only. It does not change inventory, intake, waste,
+    consumption, or shopping-list records.
+
+    The goal is not to create a shopping list automatically. The goal is to
+    identify restock candidates and explain why they may be useful, using:
+    - low, very-low, and out-of-stock inventory signals
+    - expired replacement signals
+    - meal-opportunity gap signals from draft_meal_suggestions
+    - simple usefulness scoring across possible meals
+
+    reference_date is optional and mainly useful for deterministic tests.
+    Leave blank in normal use.
+    """
+    inventory_df = read_inventory()
+
+    return build_restock_suggestion_draft(
+        inventory_df,
+        include_low_stock=include_low_stock,
+        include_out_of_stock=include_out_of_stock,
+        include_expired_replacements=include_expired_replacements,
+        include_meal_gap_candidates=include_meal_gap_candidates,
+        include_optional_upgrades=include_optional_upgrades,
+        max_suggestions=max_suggestions,
+        max_meal_suggestions=max_meal_suggestions,
         use_soon_days=use_soon_days,
         reference_date=reference_date,
     )

@@ -532,6 +532,9 @@ def _match_template(
             main_items=main_items,
         )
 
+        for gap_signal in gap_signals:
+            gap_signal["meal_name"] = meal_name
+
         priority = _score_priority(
             use_soon_items=use_soon_items,
             main_items=main_items,
@@ -550,12 +553,26 @@ def _match_template(
             else "inventory_based_meal"
         )
 
+        matched_roles = sorted(
+            {
+                role
+                for item in main_items
+                for role in item["roles"]
+                if role != "unknown"
+            }
+        )
+
         meal_match_signal = {
             "template_id": template["template_id"],
+            "template_name": template["meal_name"],
             "meal_name": meal_name,
             "suggestion_type": suggestion_type,
             "required_item": required_item["food_item"],
+            "required_role": template["required_role"],
             "supporting_items": [item["food_item"] for item in supporting_items],
+            "supporting_roles": sorted(template["supporting_roles"]),
+            "optional_roles": sorted(template["optional_roles"]),
+            "matched_roles": matched_roles,
             "use_soon_items_used": use_soon_items,
             "priority": priority,
             "confidence": confidence,
@@ -565,6 +582,9 @@ def _match_template(
             {
                 "meal_name": meal_name,
                 "suggestion_type": suggestion_type,
+                "template_id": template["template_id"],
+                "template_name": template["meal_name"],
+                "matched_roles": matched_roles,
                 "priority": priority,
                 "confidence": confidence,
                 "main_items": main_items,
@@ -640,11 +660,31 @@ def _build_gap_signals(
                 "stock_id": item["stock_id"],
                 "gap_type": gap_type,
                 "roles": item["roles"],
+                "template_id": template["template_id"],
+                "template_name": template["meal_name"],
+                "gap_role": _first_matching_role(item["roles"], relevant_gap_roles),
+                "requiredness": _requiredness_from_gap_type(gap_type),
                 "message": _gap_message(item=item, gap_type=gap_type),
             }
         )
 
     return gap_signals[:3]
+
+
+def _first_matching_role(
+    item_roles: list[str],
+    relevant_roles: set[str],
+) -> str:
+    for role in item_roles:
+        if role in relevant_roles:
+            return role
+    return item_roles[0] if item_roles else "unknown"
+
+
+def _requiredness_from_gap_type(gap_type: str) -> str:
+    if gap_type == "low_stock_used":
+        return "supporting"
+    return "optional"
 
 
 def _gap_message(*, item: dict[str, Any], gap_type: str) -> str:
@@ -673,6 +713,9 @@ def _build_suggestion_from_match(match: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "meal_name": match["meal_name"],
+        "template_id": match.get("template_id", ""),
+        "template_name": match.get("template_name", ""),
+        "matched_roles": match.get("matched_roles", []),
         "suggestion_type": match["suggestion_type"],
         "priority": match["priority"],
         "confidence": match["confidence"],

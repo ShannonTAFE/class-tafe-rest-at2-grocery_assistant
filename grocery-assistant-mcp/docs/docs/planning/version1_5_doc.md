@@ -1,6 +1,6 @@
 # Version 1.5 — Planning Intelligence and Signal-Based Recommendations
 
-**Status:** Version 1.5A, 1.5B, and 1.5C implemented and committed  
+**Status:** Version 1.5A, 1.5B, 1.5C, and 1.5D implemented and tested; ready for final commit  
 **Last updated:** 2026-05-19  
 **Mode:** Read-only planning, recommendation drafts, and decision support
 
@@ -398,6 +398,222 @@ deduct inventory
 
 ---
 
+## Version 1.5D — Restock and Shopping-List Draft Suggestions
+
+### Goal
+
+Create read-only restock suggestion drafts from inventory urgency and meal-opportunity gaps.
+
+### Main deliverable
+
+```text
+draft_restock_suggestions
+```
+
+### Purpose
+
+`draft_restock_suggestions` helps the agent explain which items may be worth restocking and why.
+
+The tool is intentionally not a shopping-list write tool. It prepares shopping-list-shaped suggestions that still require user confirmation before any future write workflow.
+
+### Why restock suggestions use meal gaps
+
+A stock-only restock tool can become a simple checklist:
+
+```text
+rice is low → buy rice
+milk is out → buy milk
+eggs are low → buy eggs
+```
+
+Version 1.5D improves this by connecting restock candidates to meal usefulness:
+
+```text
+rice is low and supports several possible meals
+a vegetable option would improve wraps and salad bowls
+eggs are out and would unlock omelette-style meal opportunities
+```
+
+This makes restock suggestions more useful than raw stock-status reminders.
+
+### Core function
+
+```python
+draft_restock_suggestions(
+    include_low_stock=True,
+    include_out_of_stock=True,
+    include_expired_replacements=True,
+    include_meal_gap_candidates=True,
+    include_optional_upgrades=True,
+    max_suggestions=8,
+    max_meal_suggestions=5,
+    use_soon_days=3,
+)
+```
+
+### Behaviour
+
+The function:
+
+```text
+reads current inventory
+reuses planning and meal-suggestion signal logic
+builds stock-based restock candidates
+builds expired replacement candidates
+builds meal-gap restock candidates
+supports generic role-gap suggestions when no exact tracked item exists
+merges duplicate candidates
+scores and ranks candidates by urgency and meal usefulness
+returns structured restock suggestion drafts
+does not modify any records
+```
+
+### Signal types used
+
+#### Stock attention signals
+
+These describe inventory items that may need attention because they are low, very low, or out of stock.
+
+Examples:
+
+```text
+low_stock
+very_low_stock
+out_of_stock
+```
+
+#### Expired replacement signals
+
+These describe items that should not be treated as usable ingredients but may need replacement.
+
+Examples:
+
+```text
+expired_replacement
+```
+
+#### Meal gap signals
+
+These describe missing, low, or unavailable items that affect meal opportunities.
+
+Useful meal-gap fields include:
+
+```text
+food_item
+stock_id
+gap_type
+roles
+gap_role
+requiredness
+meal_name
+template_id
+template_name
+```
+
+The important design decision is that restock suggestions should use structured meal-gap signals, not parse human-readable `restock_hint` strings.
+
+#### Generic role gaps
+
+When a meal could benefit from a role but no exact tracked item exists, the tool may suggest a generic role candidate instead of inventing a specific item.
+
+Example:
+
+```text
+vegetable option
+```
+
+This keeps recommendations honest when the inventory data is incomplete.
+
+### Candidate types
+
+Restock suggestions may use these candidate types:
+
+```text
+exact_item_restock
+expired_replacement
+generic_role_gap
+optional_meal_upgrade
+```
+
+### Priority and confidence
+
+Priority means:
+
+```text
+How useful or urgent is this restock suggestion?
+```
+
+Confidence means:
+
+```text
+How strongly does the available data support this suggestion?
+```
+
+A suggestion can be high priority but medium confidence if it appears useful but depends on incomplete inventory or meal-gap data.
+
+### Output shape
+
+```json
+{
+  "tool_name": "draft_restock_suggestions",
+  "summary": "Prepared restock suggestion drafts from inventory and meal-gap signals. No records were changed.",
+  "result_type": "restock_suggestion_draft",
+  "status": "success",
+  "inputs": {},
+  "signals": {
+    "stock_restock_signals": [],
+    "expired_replacement_signals": [],
+    "meal_gap_restock_signals": [],
+    "generic_role_gap_signals": [],
+    "candidate_merge_signals": [],
+    "data_quality_signals": []
+  },
+  "suggestions": [],
+  "warnings": [],
+  "next_actions": [],
+  "safety": {
+    "read_only": true,
+    "inventory_mutation_performed": false,
+    "intake_mutation_performed": false,
+    "waste_mutation_performed": false,
+    "shopping_list_mutation_performed": false,
+    "requires_user_confirmation_before_write": true
+  }
+}
+```
+
+### Boundary
+
+Version 1.5D does not:
+
+```text
+create shopping-list records
+update inventory
+reduce inventory quantities
+log intake
+create waste records
+optimise budget
+optimise nutrition
+predict exact purchase quantities
+choose stores or prices
+```
+
+The tool drafts possible restocks. It does not decide that the user definitely wants to buy them.
+
+### Key implementation decision
+
+Version 1.5D keeps shopping-list persistence out of scope.
+
+A future shopping-list workflow should have its own confirmed write lifecycle, such as:
+
+```text
+drafted → confirmed → active → bought / skipped / removed
+```
+
+Until that exists, 1.5D should remain a read-only decision-support tool.
+
+---
+
 ## Current Version 1.5 Tool Set
 
 The active Version 1.5 planning/suggestion tools are:
@@ -408,6 +624,7 @@ review_low_stock_items
 review_use_soon_items
 review_inventory_data_quality
 draft_meal_suggestions
+draft_restock_suggestions
 ```
 
 All of these should remain read-only.
@@ -449,6 +666,21 @@ missing expiry data does not block suggestions
 max_suggestions is respected
 ```
 
+Version 1.5D should be covered by tests for:
+
+```text
+empty inventory
+low-stock restock drafts
+out-of-stock restock drafts
+expired replacement drafts
+meal-gap priority elevation
+optional upgrade filtering
+generic role-gap suggestions
+max_suggestions is respected
+read-only safety metadata
+no mutation of inventory, intake, consumption, waste, or shopping-list records
+```
+
 Final closeout check:
 
 ```powershell
@@ -469,27 +701,32 @@ read-only / no-mutation behaviour
 
 ## Next Recommended Stage
 
-The next planned stage is:
+The next recommended Version 1.5 stage is:
 
 ```text
-Version 1.5D — Restock and shopping-list draft suggestions informed by meal gaps
+Version 1.5E — Recommendation quality refinement
 ```
 
-This should use the meal opportunity layer created in Version 1.5C.
+This should improve the signal quality behind meal and restock suggestions before introducing shopping-list writes.
 
-The goal is not simply:
+Useful 1.5E directions include:
 
 ```text
-low item → buy item
+better food role inference
+better meal-template matching
+better priority and confidence scoring
+better generic role-gap explanations
+better handling of incomplete or messy inventory data
+more consistent explanation text for agent-facing responses
 ```
 
-The goal is:
+The next major write-capable stage should likely be:
 
 ```text
-item supports useful meals → consider restocking
-item is optional for multiple meal opportunities → suggest as optional
-item is out but not connected to likely meals → lower priority
+Version 1.6 — Confirmed shopping-list workflow
 ```
+
+That future version can design persistent shopping-list records and explicit user-confirmed shopping-list write tools.
 
 ---
 
@@ -522,5 +759,7 @@ The assistant should avoid depending on perfect CSV data. Missing, low-confidenc
 ## Documentation Notes
 
 The detailed planning/proposal/patch documents for Version 1.5A and 1.5B can be moved to archive once their key decisions are represented in this consolidated Version 1.5 document.
+
+Keep the Version 1.5D restock suggestion architecture investigation document active while recommendation quality is still evolving. It records the reasoning behind meal-aware restock suggestions, generic role gaps, and the decision to defer persistent shopping-list writes.
 
 Keep this document as the active Version 1.5 overview and closeout reference.
