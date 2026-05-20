@@ -22,3 +22,11 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environment
+.venv/
