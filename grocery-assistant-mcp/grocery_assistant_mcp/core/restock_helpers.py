@@ -28,8 +28,13 @@ from grocery_assistant_mcp.core.planning_helpers import (
     normalize_text,
     safe_parse_date,
 )
+from grocery_assistant_mcp.core.recommendation_quality_helpers import (
+    RECOMMENDATION_QUALITY_VERSION,
+    infer_food_roles,
+    restock_quality_fields,
+)
 
-RESTOCK_VERSION = "1.5D"
+RESTOCK_VERSION = RECOMMENDATION_QUALITY_VERSION
 
 LOW_STOCK_STATUSES = {"low", "very_low"}
 OUT_OF_STOCK_STATUS = "out"
@@ -320,6 +325,7 @@ def _build_response(
         "metadata": {
             "generated_at": datetime.now(UTC).isoformat(),
             "version": RESTOCK_VERSION,
+            "quality_refinement_version": RECOMMENDATION_QUALITY_VERSION,
             "source_tools": ["draft_meal_suggestions"],
             "records_checked": {
                 "inventory": records_checked,
@@ -696,9 +702,10 @@ def _merge_candidate(candidates: CandidateMap, candidate: dict[str, Any], *, sou
 
 
 def _finalise_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
-    score = _capped_score(candidate)
-    priority = _priority_from_score(score)
     confidence = _confidence_from_candidate(candidate)
+    quality_fields = restock_quality_fields(candidate, confidence=confidence)
+    score = quality_fields["score"]
+    priority = _priority_from_score(score)
     suggested_action = _suggested_action(candidate)
 
     return {
@@ -722,6 +729,7 @@ def _finalise_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
         "suggested_action": suggested_action,
         "would_create_shopping_list_record": False,
         "requires_user_confirmation_before_write": True,
+        **quality_fields,
     }
 
 
@@ -816,22 +824,8 @@ def _stock_attention_message(*, item: dict[str, Any], signal_type: str) -> str:
 
 
 def _infer_roles(*, food_item: str, category: str) -> list[str]:
-    roles: set[str] = set()
-    item_text = food_item.lower()
-    category_text = category.lower()
-
-    if category_text in CATEGORY_ROLE_MAP:
-        roles.add(CATEGORY_ROLE_MAP[category_text])
-
-    for role, keywords in ROLE_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword in item_text:
-                roles.add(role)
-
-    if not roles:
-        roles.add("unknown")
-
-    return sorted(roles)
+    # Backward-compatible wrapper retained for local helper callers.
+    return infer_food_roles(food_item=food_item, category=category)["roles"]
 
 
 def _add_meal_support(candidate: dict[str, Any], meal_name: str, requiredness: str) -> None:

@@ -1,0 +1,188 @@
+--- /mnt/data/meal_suggestion_helpers.py	2026-05-20 09:07:03.445768264 +0000
++++ /mnt/data/v1_5e_patch/grocery_assistant_mcp/core/meal_suggestion_helpers.py	2026-05-20 09:08:56.214336678 +0000
+@@ -1,10 +1,22 @@
+ from __future__ import annotations
+ 
+-from datetime import date, datetime
++from datetime import UTC, date, datetime
+ from typing import Any
+ 
+ import pandas as pd
+ 
++from grocery_assistant_mcp.core.planning_helpers import (
++    build_next_action,
++    build_safety_metadata,
++)
++from grocery_assistant_mcp.core.recommendation_quality_helpers import (
++    RECOMMENDATION_QUALITY_VERSION,
++    infer_food_roles,
++    meal_quality_fields,
++)
++
++
++MEAL_SUGGESTION_VERSION = RECOMMENDATION_QUALITY_VERSION
+ 
+ AVAILABLE_STATUSES = {"in_stock", "low", "very_low", "ok", "available"}
+ LOW_STATUSES = {"low", "very_low"}
+@@ -240,6 +252,7 @@
+                     "agent_guidance": "Do not invent meal suggestions. Ask the user to add inventory items first.",
+                 },
+             ],
++            reference_day=today,
+         )
+ 
+     item_signals = _build_item_signals(
+@@ -343,6 +356,12 @@
+         },
+         "suggestions": suggestions,
+         "warnings": warnings,
++        "next_actions": _build_next_actions(bool(suggestions)),
++        "safety": build_safety_metadata(requires_confirmation=True),
++        "metadata": _build_metadata(
++            reference_day=today,
++            records_checked=len(item_signals),
++        ),
+     }
+ 
+ 
+@@ -350,6 +369,7 @@
+     *,
+     inputs: dict[str, Any],
+     warnings: list[dict[str, Any]],
++    reference_day: date,
+ ) -> dict[str, Any]:
+     return {
+         "tool_name": "draft_meal_suggestions",
+@@ -366,6 +386,58 @@
+         },
+         "suggestions": [],
+         "warnings": warnings,
++        "next_actions": _build_next_actions(False),
++        "safety": build_safety_metadata(requires_confirmation=True),
++        "metadata": _build_metadata(
++            reference_day=reference_day,
++            records_checked=0,
++        ),
++    }
++
++
++def _build_next_actions(has_suggestions: bool) -> list[dict[str, Any]]:
++    if not has_suggestions:
++        return [
++            build_next_action(
++                action_type="add_inventory_detail",
++                label="Add or improve inventory records",
++                tool_name="add_inventory_item",
++                reason="More inventory detail would make meal suggestions more useful.",
++                requires_confirmation=True,
++            )
++        ]
++
++    return [
++        build_next_action(
++            action_type="review_restock_options",
++            label="Review restock ideas that may improve these meals",
++            tool_name="draft_restock_suggestions",
++            reason="Use this when the user wants shopping-list-shaped ideas after seeing meal opportunities.",
++            requires_confirmation=False,
++        ),
++        build_next_action(
++            action_type="log_meal_after_confirmation",
++            label="Log a meal only after the user confirms they ate it",
++            tool_name="add_meal_with_items",
++            reason="Meal suggestions are drafts and should not become intake records without explicit user confirmation.",
++            requires_confirmation=True,
++        ),
++    ]
++
++
++def _build_metadata(*, reference_day: date, records_checked: int) -> dict[str, Any]:
++    return {
++        "generated_at": datetime.now(UTC).isoformat(),
++        "version": MEAL_SUGGESTION_VERSION,
++        "quality_refinement_version": RECOMMENDATION_QUALITY_VERSION,
++        "records_checked": {
++            "inventory": records_checked,
++            "intake_history": 0,
++            "intake_items": 0,
++            "consumption": 0,
++            "waste": 0,
++        },
++        "reference_date": reference_day.isoformat(),
+     }
+ 
+ 
+@@ -430,10 +502,11 @@
+             and 0 <= days_until_expiry <= use_soon_days
+         )
+ 
+-        roles = _infer_roles(
++        role_result = infer_food_roles(
+             food_item=food_item,
+             category=_safe_text(row.get("category", "")),
+         )
++        roles = role_result["roles"]
+ 
+         signals.append(
+             {
+@@ -454,6 +527,9 @@
+                 "is_low_stock": is_low_stock,
+                 "is_use_soon": is_use_soon,
+                 "roles": roles,
++                "role_confidence": role_result["role_confidence"],
++                "role_sources": role_result["role_sources"],
++                "role_assumptions": role_result["role_assumptions"],
+             }
+         )
+ 
+@@ -461,22 +537,8 @@
+ 
+ 
+ def _infer_roles(*, food_item: str, category: str) -> list[str]:
+-    roles: set[str] = set()
+-    item_text = food_item.lower()
+-    category_text = category.lower()
+-
+-    if category_text in CATEGORY_ROLE_MAP:
+-        roles.add(CATEGORY_ROLE_MAP[category_text])
+-
+-    for role, keywords in ROLE_KEYWORDS.items():
+-        for keyword in keywords:
+-            if keyword in item_text:
+-                roles.add(role)
+-
+-    if not roles:
+-        roles.add("unknown")
+-
+-    return sorted(roles)
++    # Backward-compatible wrapper retained for older callers/tests.
++    return infer_food_roles(food_item=food_item, category=category)["roles"]
+ 
+ 
+ def _match_template(
+@@ -710,6 +772,7 @@
+ 
+     reason = _build_reason(match=match)
+     restock_hint = _build_restock_hint(match["gap_signals"])
++    quality_fields = meal_quality_fields(match)
+ 
+     return {
+         "meal_name": match["meal_name"],
+@@ -727,6 +790,7 @@
+         "still_possible_without_missing_items": True,
+         "reason": reason,
+         "restock_hint": restock_hint,
++        **quality_fields,
+     }
+ 
+ 
+@@ -876,6 +940,9 @@
+         "food_item": item["food_item"],
+         "category": item["category"],
+         "roles": item["roles"],
++        "role_confidence": item.get("role_confidence", "medium"),
++        "role_sources": item.get("role_sources", []),
++        "role_assumptions": item.get("role_assumptions", []),
+     }
+ 
+ 
