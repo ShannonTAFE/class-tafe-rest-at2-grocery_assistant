@@ -377,3 +377,36 @@ agent calls explicit write tool if needed
 ```
 
 Planning and suggestion tools should not silently perform writes.
+
+
+## Future Direction: Camera-Assisted Inventory Input
+
+Camera-assisted inventory input is a future workflow where users can capture
+product packages, nutrition labels, receipts, or pantry/fridge photos to reduce
+manual grocery entry.
+
+The system should not write image-derived information directly into confirmed
+inventory. Instead, image-derived data should enter a staging layer where OCR,
+vision extraction, confidence scoring, validation warnings, and user confirmation
+occur before any inventory, product catalog, nutrition, or purchase-history CSVs
+are updated.
+
+Initial implementation should begin with text-first tools such as
+`stage_receipt_text` and `stage_nutrition_label_text`, allowing the project to
+simulate OCR output before adding real image upload or camera integrations.
+
+## Future Directio: Voice-Assisted Inventory Input
+
+Your voice
+↓
+audio recording
+↓
+speech-to-text transcript
+↓
+agent interprets intent
+↓
+MCP tool/resource/prompt selection
+↓
+confirmation for write actions
+↓
+inventory / intake / meal planning update
