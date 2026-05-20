@@ -1,4 +1,37 @@
 stock_id,food_item,brand,category,location,quantity,unit,servings_remaining,initial_quantity,initial_servings,stock_status,expiry_date,date_added,notes
-inv_001,Spaghetti,San Remo,pantry,cupboard,1.0,packet,5.0,1.0,5.0,in_stock,2026-12-01,2026-05-18,Dry pasta for batch meals
-inv_002,Beef mince,Coles,protein,freezer,100.0,g,1.0,500.0,4.0,low,2026-06-15,2026-05-18,Only a small amount left after batch cooking
-inv_003,Tomato pasta sauce,Leggo's,pantry,cupboard,1.0,jar,4.0,1.0,4.0,in_stock,2027-01-10,2026-05-18,Sauce base for pasta meals
+inv_001,Spaghetti,San Remo,pantry,cupboard,2.0,packet,10.0,2.0,10.0,in_stock,2026-12-01,2026-05-18,Dry pasta for batch meals
+inv_002,Beef mince,Coles,protein,freezer,500.0,g,4.0,500.0,4.0,in_stock,2026-06-15,2026-05-18,Good for bolognese tacos or rice bowls
+inv_003,Tomato pasta sauce,Leggo's,pantry,cupboard,2.0,jar,8.0,2.0,8.0,in_stock,2027-01-10,2026-05-18,Sauce base for pasta meals
+inv_004,Chicken breast,Coles,protein,freezer,1.2,kg,9.0,1.2,9.0,in_stock,2026-07-20,2026-05-18,Frozen portions for stir fry curry or wraps
+inv_005,Eggs,Coles,dairy,fridge,6.0,each,3.0,12.0,6.0,low,2026-05-28,2026-05-18,Useful for breakfast fried rice or quick meals
+inv_006,Milk,Dairy Farmers,dairy,fridge,1.0,L,4.0,2.0,8.0,low,2026-05-24,2026-05-18,Opened milk use soon
+inv_007,Greek yoghurt,Chobani,dairy,fridge,500.0,g,5.0,900.0,9.0,low,2026-05-27,2026-05-18,Good for breakfast bowls or sauces
+inv_008,Cheddar cheese,Mainland,dairy,fridge,400.0,g,8.0,500.0,10.0,in_stock,2026-06-30,2026-05-18,For pasta wraps sandwiches and snacks
+inv_009,Basmati rice,SunRice,pantry,cupboard,3.0,kg,30.0,5.0,50.0,in_stock,2027-03-01,2026-05-18,Staple side for curries stir fry and bowls
+inv_010,Oats,Uncle Tobys,pantry,cupboard,750.0,g,15.0,1.0,20.0,in_stock,2027-02-15,2026-05-18,Breakfast staple for three adults
+inv_011,Potatoes,Coles,vegetable,pantry,2.0,kg,10.0,2.0,10.0,in_stock,2026-06-05,2026-05-18,Roast mash or tray bake ingredient
+inv_012,Carrots,Coles,vegetable,fridge,1.0,kg,8.0,1.0,8.0,in_stock,2026-06-01,2026-05-18,Good for stews stir fry and lunch prep
+inv_013,Broccoli,Coles,vegetable,fridge,1.0,head,3.0,2.0,6.0,low,2026-05-23,2026-05-18,Use soon for dinner side or stir fry
+inv_014,Spinach,Coles,vegetable,fridge,120.0,g,2.0,280.0,5.0,very_low,2026-05-22,2026-05-18,Use soon before wilting
+inv_015,Onions,Coles,vegetable,pantry,1.5,kg,15.0,2.0,20.0,in_stock,2026-06-20,2026-05-18,Base ingredient for many meals
+inv_016,Garlic,Coles,vegetable,pantry,2.0,bulb,12.0,3.0,18.0,in_stock,2026-06-25,2026-05-18,Base flavour ingredient
+inv_017,Bananas,Coles,fruit,counter,4.0,each,4.0,8.0,8.0,low,2026-05-23,2026-05-18,Breakfast and snack fruit
+inv_018,Apples,Coles,fruit,fridge,8.0,each,8.0,10.0,10.0,in_stock,2026-06-10,2026-05-18,Lunchbox and snack fruit
+inv_019,Bread loaf,Helga's,bakery,pantry,0.5,loaf,5.0,1.0,10.0,low,2026-05-24,2026-05-18,Toast sandwiches and quick meals
+inv_020,Tortilla wraps,Old El Paso,bakery,pantry,8.0,each,8.0,8.0,8.0,in_stock,2026-06-05,2026-05-18,Wraps quesadillas and easy lunches
+inv_021,Canned tuna,John West,pantry,cupboard,6.0,can,6.0,6.0,6.0,in_stock,2027-08-01,2026-05-18,Backup protein for lunches
+inv_022,Canned chickpeas,Coles,pantry,cupboard,4.0,can,8.0,4.0,8.0,in_stock,2027-05-01,2026-05-18,Good for curries salads and hummus
+inv_023,Coconut milk,Ayam,pantry,cupboard,2.0,can,6.0,2.0,6.0,in_stock,2027-02-10,2026-05-18,Curry base ingredient
+inv_024,Curry paste,Valcom,pantry,fridge,0.5,jar,4.0,1.0,8.0,low,2026-08-15,2026-05-18,Opened jar for quick curries
+inv_025,Frozen mixed vegetables,Coles,vegetable,freezer,1.0,kg,10.0,1.0,10.0,in_stock,2026-09-20,2026-05-18,Backup vegetables for rice bowls and stir fry
+inv_026,Frozen berries,Coles,fruit,freezer,500.0,g,8.0,500.0,8.0,in_stock,2026-10-15,2026-05-18,Smoothies oats and yoghurt bowls
+inv_027,Chicken nuggets,Ingham,protein,freezer,300.0,g,3.0,1.0,10.0,low,2026-08-01,2026-05-18,Convenience freezer meal
+inv_028,Salmon fillets,Tassal,protein,freezer,0.0,fillet,0.0,4.0,4.0,out,2026-07-30,2026-05-18,Previously used for quick healthy dinners
+inv_029,Peanut butter,Bega,pantry,cupboard,375.0,g,15.0,375.0,15.0,in_stock,2027-01-01,2026-05-18,Toast oats snacks and sauces
+inv_030,Olive oil,Coles,pantry,cupboard,500.0,ml,25.0,750.0,38.0,in_stock,2027-04-01,2026-05-18,Cooking oil staple
+inv_031,Soy sauce,Kikkoman,pantry,cupboard,150.0,ml,15.0,250.0,25.0,low,2027-06-01,2026-05-18,Stir fry marinade and rice bowl seasoning
+inv_032,Plain flour,White Wings,pantry,cupboard,1.0,kg,20.0,1.0,20.0,in_stock,2027-02-01,2026-05-18,Baking sauces and coating
+inv_033,Pasta shells,Barilla,pantry,cupboard,0.0,packet,0.0,1.0,5.0,out,2026-12-01,2026-05-18,Keep as restock memory but not urgent
+inv_034,Lettuce,Coles,vegetable,fridge,0.5,head,2.0,1.0,4.0,very_low,2026-05-21,2026-05-18,Use immediately for wraps or salad
+inv_035,Ham slices,Don,protein,fridge,100.0,g,3.0,250.0,7.0,low,2026-05-23,2026-05-18,Lunch sandwich protein use soon
+inv_036,Butter,Western Star,dairy,fridge,250.0,g,20.0,250.0,20.0,in_stock,2026-07-01,2026-05-18,Cooking baking and toast

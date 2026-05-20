@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "review_planning_context",
+    "arguments": {
+      "recent_days": 7,
+      "include_inventory": true,
+      "include_recent_intake": true,
+      "include_consumption": false,
+      "include_waste": false
+    }
+  }
+}

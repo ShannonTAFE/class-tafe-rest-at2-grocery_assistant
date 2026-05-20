@@ -1,73 +1,297 @@
 # Future Version Plans
 
+**Last updated:** 2026-05-19  
+**Status:** Active future planning document
+
+---
+
 ## Purpose
 
-This file records ideas intentionally deferred beyond the Version 1.4 closeout baseline.
+This file records ideas intentionally deferred beyond the current implemented baseline.
 
-It should not describe Version 1.4 batch meal logging as future work. Version 1.4 now owns:
+The project has now completed the first Version 1.5 planning-intelligence stages:
 
 ```text
-add_meal_with_items
-add_meal_with_inventory_items
+Version 1.5A — planning signal foundation
+Version 1.5B — focused inventory planning reviews
+Version 1.5C — signal-based meal suggestion drafts
+```
+
+Future work should build on this signal-first foundation instead of bypassing it.
+
+---
+
+## Current Direction
+
+The preferred intelligence sequence is:
+
+```text
+records
+↓
+signals
+↓
+meal opportunities
+↓
+meal gaps
+↓
+restock suggestions
+↓
+shopping-list drafts
+↓
+feedback
+↓
+learning over time
+```
+
+This means future restock and shopping-list suggestions should be informed by meal usefulness, not only by stock status.
+
+---
+
+# Version 1.5D — Restock Draft Suggestions From Meal Gaps
+
+## Goal
+
+Create read-only restock suggestions informed by:
+
+```text
+low-stock inventory signals
+out-of-stock inventory signals
+expired replacement signals
+meal opportunity gaps from draft_meal_suggestions
+usefulness across multiple meal opportunities
+```
+
+## Why this comes after meal suggestions
+
+A pure restock system can become a checklist:
+
+```text
+rice is low → buy rice
+milk is out → buy milk
+eggs are low → buy eggs
+```
+
+A meal-aware restock system can explain why an item matters:
+
+```text
+rice is low and supports chicken rice bowls and stir-fry meals
+cheese is low and would improve wraps, omelettes, and pasta meals
+soy sauce is out and would improve rice bowl suggestions
+```
+
+## Candidate tool
+
+```text
+draft_restock_suggestions
+```
+
+## Important boundary
+
+This tool should not write to a shopping list yet.
+
+It should return a draft with:
+
+```text
+food_item
+priority
+reason
+source_signals
+related_meal_opportunities
+required_or_optional
+confidence
+requires_confirmation_before_write
 ```
 
 ---
 
-# Version 1.5 — Planning Intelligence
+# Version 1.5E — Shopping List Drafts
 
-Version 1.5 can begin adding recommendation and planning features on top of the safe write foundation.
+## Goal
 
-Possible capabilities:
+Create a non-persistent shopping-list draft from planning signals.
+
+## Candidate tool
 
 ```text
-suggest_meals_from_inventory
-review_low_stock_items
-suggest_restock_items
-review_food_waste_patterns
 draft_shopping_list
-suggest_next_meal
-review_recent_intake_patterns
 ```
 
-Important rule:
+## Inputs may include
 
 ```text
-Planning tools may suggest, but should not silently mutate inventory or intake records.
+restock suggestions
+meal gap suggestions
+low-stock signals
+expired replacement signals
+common pantry/staple signals
+user-provided shopping intent
+```
+
+## Important boundary
+
+This stage should still avoid creating persistent shopping-list records unless the user explicitly asks for that behaviour and a separate write tool has been designed and tested.
+
+Possible output groups:
+
+```text
+essential restocks
+meal-supporting items
+optional improvements
+expired replacements
+low-priority pantry items
 ```
 
 ---
 
 # Future Shopping List Support
 
-Possible files:
+Possible future files:
 
 ```text
 user_shopping_list.csv
 user_shopping_list_items.csv
 ```
 
-Possible tools:
+Possible future write tools:
 
 ```text
+create_shopping_list
 add_shopping_list_item
 update_shopping_list_item
 remove_shopping_list_item
-generate_shopping_list_from_low_stock
-generate_shopping_list_from_meal_plan
+confirm_shopping_list_draft
 ```
 
 Design questions:
 
-- Should generated shopping items require confirmation?
-- Should low-stock inventory automatically become shopping list entries?
-- How should priority be represented?
-- How should repeated staples be handled?
+```text
+Should generated shopping items require confirmation?
+Should low-stock inventory automatically become shopping-list entries?
+How should priority be represented?
+How should repeated staples be handled?
+Should shopping-list items link back to meal opportunities?
+Should shopping-list items link back to source inventory signals?
+```
+
+Recommendation:
+
+```text
+Start with draft-only shopping lists before adding persistent shopping-list writes.
+```
+
+---
+
+# Version 1.6 — User Feedback and Learning Over Time
+
+## Goal
+
+Begin recording feedback about recommendation usefulness.
+
+This should come before any machine-learning recommender.
+
+Possible future files:
+
+```text
+user_recommendation_events.csv
+user_recommendation_feedback.csv
+```
+
+Possible event fields:
+
+```text
+recommendation_id
+recommendation_type
+created_at
+signals_used
+suggested_items
+suggested_meals
+confidence
+priority
+accepted
+rejected
+ignored
+modified
+user_note
+```
+
+Possible feedback signals:
+
+```text
+user cooked suggested meal
+user bought suggested item
+user rejected suggestion
+user substituted ingredient
+user repeatedly ignores similar suggestions
+item frequently wasted after purchase
+```
+
+Important principle:
+
+```text
+Do not build a train/test recommender until enough labelled recommendation feedback exists.
+```
+
+---
+
+# Version 1.7 — Nutrition-Aware Opportunities
+
+## Goal
+
+Introduce soft nutrition opportunities after the meal and restock layers are stable.
+
+Possible signals:
+
+```text
+protein opportunity
+fibre opportunity
+vegetable opportunity
+balanced meal opportunity
+higher-energy meal option
+lighter meal option
+```
+
+Boundary:
+
+```text
+Nutrition suggestions should be optional, gentle, and non-medical.
+```
+
+The assistant should not present itself as a dietitian or medical advisor.
+
+---
+
+# Version 1.8 — Cost, Waste, and Convenience Ranking
+
+## Goal
+
+Improve ranking using practical household constraints.
+
+Possible ranking factors:
+
+```text
+use-soon priority
+number of available ingredients
+number of missing ingredients
+waste reduction
+cost efficiency
+user enjoyment
+estimated effort
+leftover potential
+nutrition value
+```
+
+Important idea:
+
+```text
+The best recommendation is not always the cheapest, healthiest, or most complete.
+It should balance usefulness, confidence, user preference, and current grocery context.
+```
 
 ---
 
 # Future Meal Templates and Learning
 
-Possible files:
+Possible future files:
 
 ```text
 user_meal_templates.csv
@@ -87,94 +311,102 @@ log_meal_from_template
 Safety rule:
 
 ```text
-A known meal template can help create intake records, but inventory deduction should still require an explicit inventory-linked path.
+A known meal template can help create intake records, but inventory deduction should still require explicit user intent.
 ```
 
 ---
 
 # Future Consumption Adjustment and Reversal
 
-Version 1.3 and Version 1.4 record inventory consumption events, but reversal rules are intentionally deferred.
-
-Possible future tools:
+Possible tools:
 
 ```text
-adjust_inventory_consumption
-undo_inventory_consumption
-restore_inventory_from_consumption
-remove_intake_item_and_optionally_restore_inventory
+adjust_inventory_consumption_event
+reverse_inventory_consumption_event
+restore_inventory_from_consumption_event
 ```
 
-Important questions:
-
-- Should reversal restore quantity, servings, or both?
-- What happens if inventory has since been updated manually?
-- What if the original inventory item has been removed?
-- Should reversal remove the intake item or only adjust inventory?
-- Should the consumption event be deleted or marked as reversed?
-
-A future consumption event schema may need fields such as:
+Purpose:
 
 ```text
-reversed_at
-reversal_reason
-reversed_by_consumption_id
+Correct accidental inventory deductions or logging mistakes.
 ```
+
+This becomes more important as the assistant starts helping users act on suggestions.
 
 ---
 
 # Future Recipe and Batch Cooking Support
 
-Possible files:
+Possible future concepts:
 
 ```text
-user_recipes.csv
-user_recipe_items.csv
-user_batch_cooks.csv
-user_batch_cook_portions.csv
+recipe templates
+batch meal templates
+servings planned
+servings eaten
+servings stored
+leftover tracking
 ```
 
-Possible tools:
+Boundary:
 
 ```text
-create_recipe
-add_recipe_item
-log_batch_cook
-consume_recipe_portion
-```
-
-Design questions:
-
-- How are recipe servings represented?
-- How are leftovers tracked?
-- Does one batch cook create inventory items, intake items, or both?
-- How should partial ingredient deduction work?
-
----
-
-# Future Nutrition Improvements
-
-Possible ideas:
-
-- nutrition estimate confidence scoring
-- recipe-level nutrition rollups
-- parent meal nutrition auto-sum from child items
-- optional nutrition sources
-- better handling of unknown estimates
-
-Current rule remains:
-
-```text
-Do not silently overwrite user-entered nutrition totals unless the user asks for recalculation.
+Recipe support should not be required for basic meal opportunities.
+Simple meal opportunities can stay template-based until the project needs deeper recipe structure.
 ```
 
 ---
 
 # Future MCP Agent Behaviour
 
-Possible prompt and agent improvements:
+Future agents should use planning tools to gather structured evidence before presenting advice.
 
-- guide agents to search before updating
-- guide agents to ask before deducting inventory
-- guide agents to use intake-only workflow for ambiguous meal logging
-- guide agents to use inventory-linked workflow only when stock IDs are known or confirmed
+Expected flow:
+
+```text
+user asks for food advice
+↓
+agent calls relevant planning/recommendation tool
+↓
+agent explains draft suggestions with confidence and caveats
+↓
+user confirms an action
+↓
+agent calls explicit write tool if needed
+```
+
+Planning and suggestion tools should not silently perform writes.
+
+
+## Future Direction: Camera-Assisted Inventory Input
+
+Camera-assisted inventory input is a future workflow where users can capture
+product packages, nutrition labels, receipts, or pantry/fridge photos to reduce
+manual grocery entry.
+
+The system should not write image-derived information directly into confirmed
+inventory. Instead, image-derived data should enter a staging layer where OCR,
+vision extraction, confidence scoring, validation warnings, and user confirmation
+occur before any inventory, product catalog, nutrition, or purchase-history CSVs
+are updated.
+
+Initial implementation should begin with text-first tools such as
+`stage_receipt_text` and `stage_nutrition_label_text`, allowing the project to
+simulate OCR output before adding real image upload or camera integrations.
+
+## Future Directio: Voice-Assisted Inventory Input
+
+Your voice
+↓
+audio recording
+↓
+speech-to-text transcript
+↓
+agent interprets intent
+↓
+MCP tool/resource/prompt selection
+↓
+confirmation for write actions
+↓
+inventory / intake / meal planning update

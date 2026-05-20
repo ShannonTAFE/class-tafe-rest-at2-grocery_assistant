@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "tools/call",
+  "params": {
+    "name": "review_inventory_data_quality",
+    "arguments": {
+      "include_missing_stock_status": true,
+      "include_missing_quantity": true,
+      "include_no_expiry_data": true,
+      "include_invalid_expiry_date": true
+    }
+  }
+}

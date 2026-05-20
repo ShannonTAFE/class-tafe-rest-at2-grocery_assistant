@@ -619,8 +619,11 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-18 18:40:25,515 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-18 18:40:25,550 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-18 18:45:15,574 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
+=======
+>>>>>>> 53b7eacc9a2fcaf055cb45d8845428dc83835ae9
 2026-05-19 13:53:48,065 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
 2026-05-19 13:53:48,211 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
 2026-05-19 13:54:12,809 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: a8277b356a1246568de3238ebb44ba09
@@ -679,6 +682,7 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-20 09:50:11,829 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
 2026-05-20 17:34:22,745 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
 2026-05-20 17:34:22,896 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started
+<<<<<<< HEAD
 2026-05-20 17:34:36,078 | INFO | mcp.server.streamable_http_manager | Created new transport with session ID: 7775b171ad494b18897265e2167666b5
 2026-05-20 17:34:38,150 | INFO | mcp.server.lowlevel.server | Processing request of type ListToolsRequest
 2026-05-20 17:35:08,303 | INFO | mcp.server.lowlevel.server | Processing request of type CallToolRequest
@@ -694,3 +698,5 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 2026-05-20 22:43:49,629 | INFO | mcp.server.streamable_http | Terminating session: 8a87a6eb59bd4ad9a123182bf6f91e7c
 2026-05-20 22:44:11,344 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager shutting down
 >>>>>>> Stashed changes
+=======
+>>>>>>> 53b7eacc9a2fcaf055cb45d8845428dc83835ae9
