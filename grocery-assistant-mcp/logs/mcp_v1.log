@@ -700,3 +700,5 @@ ValueError: Error reading resource grocery://intake/history: Object of type Data
 >>>>>>> Stashed changes
 =======
 >>>>>>> 53b7eacc9a2fcaf055cb45d8845428dc83835ae9
+2026-05-20 23:18:35,198 | INFO | grocery_assistant_mcp.utils.logging_config | Logging configured
+2026-05-20 23:18:35,356 | INFO | mcp.server.streamable_http_manager | StreamableHTTP session manager started

@@ -15,21 +15,18 @@ async def main() -> None:
     async with client:
         await client.ping()
 
+        print("Connected to Grocery MCP server.")
+
         tools = await client.list_tools()
-        resources = await client.list_resources()
 
         print("\nAvailable tools:")
         for tool in tools:
-            print(f"- {tool.name}: {tool.description}")
-
-        print("\nAvailable resources:")
-        for resource in resources:
-            print(f"- {resource.uri}: {resource.name}")
+            print(f"- {tool.name}")
 
         result = await client.call_tool(
             "search_inventory",
             {
-                "query": "pasta",
+                "query": "",
                 "category": "",
                 "location": "",
             },
