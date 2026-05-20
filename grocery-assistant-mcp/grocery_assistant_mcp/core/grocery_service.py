@@ -86,6 +86,13 @@ from grocery_assistant_mcp.core.batch_inventory_meal_service import (
     add_meal_with_inventory_items,
 )
 
+from grocery_assistant_mcp.core.meal_suggestion_helpers import (
+    build_meal_suggestion_draft,
+)
+from grocery_assistant_mcp.core.restock_helpers import (
+    build_restock_suggestion_draft,
+)
+
 from grocery_assistant_mcp.core.write_helpers import (
     backup_csv,
     clean_lower_text,
@@ -2128,3 +2135,83 @@ def remove_inventory_item(
         "inventory_backup_created": str(inventory_backup_path) if inventory_backup_path else None,
         "waste_backup_created": str(waste_backup_path) if waste_backup_path else None,
     }
+
+
+def draft_meal_suggestions(
+    include_use_soon: bool = True,
+    include_inventory_based: bool = True,
+    include_gap_hints: bool = True,
+    max_suggestions: int = 5,
+    use_soon_days: int = 3,
+    reference_date: str = "",
+) -> dict:
+    """
+    Draft meal opportunity suggestions from current inventory signals.
+
+    This function is read-only. It does not change inventory, intake, waste,
+    or shopping-list records.
+
+    The goal is not full recipe generation. The goal is to identify simple,
+    explainable meal opportunities from:
+    - available inventory
+    - use-soon items
+    - low/out-of-stock gap hints
+    - inferred food roles
+    - simple meal templates
+
+    reference_date is optional and mainly useful for deterministic tests.
+    Leave blank in normal use.
+    """
+    inventory_df = read_inventory()
+
+    return build_meal_suggestion_draft(
+        inventory_df,
+        include_use_soon=include_use_soon,
+        include_inventory_based=include_inventory_based,
+        include_gap_hints=include_gap_hints,
+        max_suggestions=max_suggestions,
+        use_soon_days=use_soon_days,
+        reference_date=reference_date,
+    )
+
+def draft_restock_suggestions(
+    include_low_stock: bool = True,
+    include_out_of_stock: bool = True,
+    include_expired_replacements: bool = True,
+    include_meal_gap_candidates: bool = True,
+    include_optional_upgrades: bool = True,
+    max_suggestions: int = 8,
+    max_meal_suggestions: int = 5,
+    use_soon_days: int = 3,
+    reference_date: str = "",
+) -> dict:
+    """
+    Draft restock and shopping-list suggestion ideas from current planning signals.
+
+    This function is read-only. It does not change inventory, intake, waste,
+    consumption, or shopping-list records.
+
+    The goal is not to create a shopping list automatically. The goal is to
+    identify restock candidates and explain why they may be useful, using:
+    - low, very-low, and out-of-stock inventory signals
+    - expired replacement signals
+    - meal-opportunity gap signals from draft_meal_suggestions
+    - simple usefulness scoring across possible meals
+
+    reference_date is optional and mainly useful for deterministic tests.
+    Leave blank in normal use.
+    """
+    inventory_df = read_inventory()
+
+    return build_restock_suggestion_draft(
+        inventory_df,
+        include_low_stock=include_low_stock,
+        include_out_of_stock=include_out_of_stock,
+        include_expired_replacements=include_expired_replacements,
+        include_meal_gap_candidates=include_meal_gap_candidates,
+        include_optional_upgrades=include_optional_upgrades,
+        max_suggestions=max_suggestions,
+        max_meal_suggestions=max_meal_suggestions,
+        use_soon_days=use_soon_days,
+        reference_date=reference_date,
+    )
