@@ -32,9 +32,17 @@ async def main() -> None:
             },
         )
 
-        print("\nsearch_inventory result:")
-        print(result)
+        items = result.structured_content.get("result", [])
 
+        print("\nsearch_inventory summary:")
+        print(f"- Returned {len(items)} inventory item(s)")
+
+        for item in items[:5]:
+            print(
+                f"- {item.get('stock_id')}: "
+                f"{item.get('food_item')} "
+                f"({item.get('stock_status')})"
+            )
 
 if __name__ == "__main__":
     asyncio.run(main())

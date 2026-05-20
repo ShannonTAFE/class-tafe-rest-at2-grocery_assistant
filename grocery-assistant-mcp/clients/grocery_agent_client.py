@@ -14,20 +14,12 @@ MCP_URL = os.getenv("GROCERY_MCP_URL", "http://127.0.0.1:8000/mcp")
 
 
 GROCERY_AGENT_INSTRUCTIONS = """
-You are a grocery planning assistant connected to the user's Grocery Assistant MCP server.
-
-Use the MCP tools to inspect inventory, intake, planning signals, meal suggestions,
-restock suggestions, and recommendation drafts.
-
-Important behaviour:
-- Prefer read/review/draft tools before write tools.
-- Do not modify inventory or intake unless the user clearly asks for a change.
-- Treat recommendation outputs as decision support, not final truth.
-- Explain which tool results influenced your answer.
-- Respect data quality warnings, low confidence signals, and missing expiry data.
-- When suggesting meals, consider inventory availability, use-soon items, low-stock items,
-  and reasonable missing-ingredient flexibility.
-- When suggesting restocks, distinguish urgent staples from optional or preference-based items.
+WRITE SAFETY:
+- Never call add, update, remove, or consume tools unless the user explicitly asks to change stored data.
+- If the user asks for advice, review, suggestions, planning, or recommendations, use read/review/draft tools only.
+- Before using a write tool, briefly state the intended change in the final response after the tool call.
+- If the user request is ambiguous, prefer explaining what could be changed rather than changing data.
+- Removal tools are destructive. Only use remove tools when the user clearly asks to delete/remove a record.
 """
 
 
@@ -62,6 +54,6 @@ if __name__ == "__main__":
     request = " ".join(sys.argv[1:]).strip()
 
     if not request:
-        request = "Review my current inventory and suggest useful next actions."
+        request = "Review my current grocery planning context and suggest useful next actions."
 
     asyncio.run(run_agent(request))
