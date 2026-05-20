@@ -17,29 +17,38 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 GROCERY_SYSTEM_INSTRUCTION = """
-You are a grocery planning assistant connected to the user's Grocery Assistant MCP server.
-
-You can use MCP-backed tools to inspect inventory, intake, planning context,
-low-stock items, use-soon items, data quality signals, restock suggestions,
-and meal suggestions.
-
-Important behaviour:
-- Prefer read, review, and draft tools before write tools.
-- Do not modify inventory or intake unless the user clearly asks for a stored data change.
-- If the user asks for advice, suggestions, review, or planning, use read/review/draft tools only.
-- Treat recommendation outputs as decision support, not final truth.
-- Explain which tool result influenced your answer.
-- Respect low-confidence signals, missing data, expiry warnings, and data quality warnings.
-- Removal tools are destructive. Only use remove tools when the user clearly asks to delete/remove a record.
+WRITE TOOL VISIBILITY:
+- You are allowed to use write tools when the user's request clearly asks to add, update, consume, or remove stored data.
+- Tool calls must be interpretable. The client will print selected tool names and arguments before execution.
+- Do not call write tools for advice-only requests.
+- For advice, review, meal suggestions, restock suggestions, or planning, prefer review/draft tools.
+- If using a write tool, explain afterward what was changed and which tool was used.
+- Use remove tools only when the user clearly asks to delete or remove a stored record.
+- If a request is ambiguous, do not write. Explain what could be changed instead.
 """
 
 
 # Start read-first. Add write tools later after safety testing.
 ALLOWED_MCP_TOOLS = {
+    # Inventory
     "search_inventory",
+    "add_inventory_item",
+    "update_inventory_item",
+    "remove_inventory_item",
+    "consume_inventory_item",
+
+    # Intake
     "get_recent_intake",
     "get_daily_intake_summary",
     "search_intake",
+    "add_intake_entry",
+    "add_intake_item",
+    "update_intake_entry",
+    "update_intake_item",
+    "remove_intake_entry",
+    "remove_intake_item",
+
+    # Planning / recommendations
     "review_planning_context",
     "review_low_stock_items",
     "review_use_soon_items",
@@ -63,6 +72,226 @@ def _schema_for_tool(tool_name: str) -> dict[str, Any]:
     }
 
     schemas: dict[str, dict[str, Any]] = {
+                "add_inventory_item": {
+            "description": "Add a new item to grocery inventory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "food_item": {"type": "string"},
+                    "brand": {"type": "string"},
+                    "category": {"type": "string"},
+                    "location": {"type": "string"},
+                    "quantity": {"type": "number"},
+                    "unit": {"type": "string"},
+                    "servings_remaining": {"type": "number"},
+                    "initial_quantity": {"type": "number"},
+                    "initial_servings": {"type": "number"},
+                    "stock_status": {"type": "string"},
+                    "expiry_date": {"type": "string"},
+                    "date_added": {"type": "string"},
+                    "notes": {"type": "string"},
+                },
+                "required": [
+                    "food_item",
+                    "brand",
+                    "category",
+                    "location",
+                    "quantity",
+                    "unit",
+                    "servings_remaining",
+                    "initial_quantity",
+                    "initial_servings",
+                    "stock_status",
+                    "expiry_date",
+                    "date_added",
+                    "notes",
+                ],
+            },
+        },
+        "update_inventory_item": {
+            "description": "Update an existing grocery inventory item by stock_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stock_id": {"type": "string"},
+                    "food_item": {"type": "string"},
+                    "brand": {"type": "string"},
+                    "category": {"type": "string"},
+                    "location": {"type": "string"},
+                    "quantity": {"type": "number"},
+                    "unit": {"type": "string"},
+                    "servings_remaining": {"type": "number"},
+                    "initial_quantity": {"type": "number"},
+                    "initial_servings": {"type": "number"},
+                    "stock_status": {"type": "string"},
+                    "expiry_date": {"type": "string"},
+                    "date_added": {"type": "string"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["stock_id"],
+            },
+        },
+        "remove_inventory_item": {
+            "description": "Remove an inventory item by stock_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stock_id": {"type": "string"},
+                },
+                "required": ["stock_id"],
+            },
+        },
+        "consume_inventory_item": {
+            "description": "Consume part or all of an inventory item and update remaining quantity/servings.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stock_id": {"type": "string"},
+                    "quantity_used": {"type": "number"},
+                    "servings_used": {"type": "number"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["stock_id", "quantity_used", "servings_used", "notes"],
+            },
+        },
+                "add_intake_entry": {
+            "description": "Add a new meal/intake entry.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date": {"type": "string"},
+                    "time": {"type": "string"},
+                    "meal_type": {"type": "string"},
+                    "meal_name": {"type": "string"},
+                    "meal_description": {"type": "string"},
+                    "source": {"type": "string"},
+                    "amount_eaten": {"type": "string"},
+                    "portion_confidence": {"type": "string"},
+                    "total_calories_estimate": {"type": "number"},
+                    "total_protein_g_estimate": {"type": "number"},
+                    "total_carbs_g_estimate": {"type": "number"},
+                    "total_fat_g_estimate": {"type": "number"},
+                    "total_fibre_g_estimate": {"type": "number"},
+                    "notes": {"type": "string"},
+                },
+                "required": [
+                    "date",
+                    "time",
+                    "meal_type",
+                    "meal_name",
+                    "meal_description",
+                    "source",
+                    "amount_eaten",
+                    "portion_confidence",
+                    "total_calories_estimate",
+                    "total_protein_g_estimate",
+                    "total_carbs_g_estimate",
+                    "total_fat_g_estimate",
+                    "total_fibre_g_estimate",
+                    "notes",
+                ],
+            },
+        },
+        "add_intake_item": {
+            "description": "Add a food item to an existing intake entry.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intake_id": {"type": "string"},
+                    "food_item": {"type": "string"},
+                    "brand": {"type": "string"},
+                    "quantity": {"type": "number"},
+                    "unit": {"type": "string"},
+                    "calories_estimate": {"type": "number"},
+                    "protein_g_estimate": {"type": "number"},
+                    "carbs_g_estimate": {"type": "number"},
+                    "fat_g_estimate": {"type": "number"},
+                    "fibre_g_estimate": {"type": "number"},
+                    "source": {"type": "string"},
+                    "notes": {"type": "string"},
+                },
+                "required": [
+                    "intake_id",
+                    "food_item",
+                    "brand",
+                    "quantity",
+                    "unit",
+                    "calories_estimate",
+                    "protein_g_estimate",
+                    "carbs_g_estimate",
+                    "fat_g_estimate",
+                    "fibre_g_estimate",
+                    "source",
+                    "notes",
+                ],
+            },
+        },
+        "update_intake_entry": {
+            "description": "Update an existing intake entry by intake_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intake_id": {"type": "string"},
+                    "date": {"type": "string"},
+                    "time": {"type": "string"},
+                    "meal_type": {"type": "string"},
+                    "meal_name": {"type": "string"},
+                    "meal_description": {"type": "string"},
+                    "source": {"type": "string"},
+                    "amount_eaten": {"type": "string"},
+                    "portion_confidence": {"type": "string"},
+                    "total_calories_estimate": {"type": "number"},
+                    "total_protein_g_estimate": {"type": "number"},
+                    "total_carbs_g_estimate": {"type": "number"},
+                    "total_fat_g_estimate": {"type": "number"},
+                    "total_fibre_g_estimate": {"type": "number"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["intake_id"],
+            },
+        },
+        "update_intake_item": {
+            "description": "Update an existing intake item by intake_item_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intake_item_id": {"type": "string"},
+                    "intake_id": {"type": "string"},
+                    "food_item": {"type": "string"},
+                    "brand": {"type": "string"},
+                    "quantity": {"type": "number"},
+                    "unit": {"type": "string"},
+                    "calories_estimate": {"type": "number"},
+                    "protein_g_estimate": {"type": "number"},
+                    "carbs_g_estimate": {"type": "number"},
+                    "fat_g_estimate": {"type": "number"},
+                    "fibre_g_estimate": {"type": "number"},
+                    "source": {"type": "string"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["intake_item_id"],
+            },
+        },
+        "remove_intake_entry": {
+            "description": "Remove an intake entry by intake_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intake_id": {"type": "string"},
+                },
+                "required": ["intake_id"],
+            },
+        },
+        "remove_intake_item": {
+            "description": "Remove an intake item by intake_item_id.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intake_item_id": {"type": "string"},
+                },
+                "required": ["intake_item_id"],
+            },
+        },
         "search_inventory": {
             "description": "Search current grocery inventory by query, category, or location.",
             "parameters": {
@@ -324,6 +553,25 @@ async def run_gemini_grocery_client(user_request: str) -> None:
     async with Client(MCP_URL) as mcp_client:
         await mcp_client.ping()
 
+        tools = await mcp_client.list_tools()
+        resources = await mcp_client.list_resources()
+
+        print("\nConnected to Grocery MCP server.")
+        print("\nVisible MCP tools:")
+        for tool in tools:
+            print(f"- {tool.name}")
+
+        print("\nVisible MCP resources:")
+        for resource in resources:
+            print(f"- {resource.uri}")
+
+        try:
+            prompts = await mcp_client.list_prompts()
+            print("\nVisible MCP prompts:")
+            for prompt in prompts:
+                print(f"- {prompt.name}")
+        except Exception as exc:
+            print(f"\nNo MCP prompts listed or prompt listing unavailable: {exc}")
         first_response = gemini_client.models.generate_content(
             model=GEMINI_MODEL,
             contents=contents,
@@ -340,8 +588,13 @@ async def run_gemini_grocery_client(user_request: str) -> None:
             tool_name = function_call.name
             tool_args = dict(function_call.args or {})
 
-            print(f"\n[Gemini selected tool: {tool_name}]")
-            print(f"[Arguments: {tool_args}]")
+            print("\n" + "=" * 72)
+            print("GEMINI TOOL CALL")
+            print("=" * 72)
+            print(f"Tool: {tool_name}")
+            print("Arguments:")
+            print(json.dumps(tool_args, indent=2, ensure_ascii=False))
+            print("=" * 72)
 
             tool_result = await call_mcp_tool(mcp_client, tool_name, tool_args)
             compact_result = compact_tool_result(tool_result)

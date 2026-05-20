@@ -11,7 +11,7 @@ from agents.model_settings import ModelSettings
 load_dotenv()
 
 MCP_URL = os.getenv("GROCERY_MCP_URL", "http://127.0.0.1:8000/mcp")
-
+OPENAI_AGENT_MODEL = os.getenv("OPENAI_AGENT_MODEL", "gpt-5.4-mini")
 
 GROCERY_AGENT_INSTRUCTIONS = """
 WRITE SAFETY:
@@ -36,6 +36,7 @@ async def run_agent(user_request: str) -> None:
         agent = Agent(
             name="Grocery Assistant Agent",
             instructions=GROCERY_AGENT_INSTRUCTIONS,
+            model=OPENAI_AGENT_MODEL,
             mcp_servers=[grocery_server],
             model_settings=ModelSettings(
                 tool_choice="auto",
@@ -45,7 +46,7 @@ async def run_agent(user_request: str) -> None:
                 "include_server_in_tool_names": True,
             },
         )
-
+        print(f"Using OpenAI agent model: {OPENAI_AGENT_MODEL}")
         result = await Runner.run(agent, user_request)
         print(result.final_output)
 
