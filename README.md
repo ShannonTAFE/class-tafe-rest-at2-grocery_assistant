@@ -1,20 +1,28 @@
 # Grocery Assistant MCP
 
-A local Model Context Protocol (MCP) server for managing grocery inventory, meal intake records, inventory consumption, and food waste tracking.
+A local Model Context Protocol (MCP) server for managing grocery inventory, meal intake records, inventory consumption, planning signals, recommendation drafts, and provider-agent client workflows.
 
-This project is built as a learning-focused MCP implementation. It exposes grocery data through MCP resources and provides tools that allow an MCP client or agent to search, add, update, remove, and connect grocery inventory with food intake workflows.
+This project is built as a learning-focused MCP implementation. The MCP server exposes grocery data through resources and tools, while the client layer connects model providers such as OpenAI, Gemini, or a local OpenAI-compatible model to those MCP tools.
+
+The main design principle is:
+
+```text
+MCP server = deterministic grocery tools and business logic
+Provider clients = model/agent connections to the MCP server
+Agents/models = reasoning, tool selection, and explanation
+```
 
 ---
 
 ## Current Version
 
 ```text
-Version 1.4
+Version 1.6 — Client and Agent Integration
 ```
 
-Version 1.4 focuses on improving the project from simple read/write tools into a more complete grocery workflow system.
+Version 1.6 adds a major new capability: provider-agent clients that can connect model providers to the Grocery Assistant MCP server.
 
-The current Version 1.4 implementation includes:
+The current implementation includes:
 
 - Inventory search and write tools
 - Intake history and intake item tools
@@ -23,10 +31,18 @@ The current Version 1.4 implementation includes:
 - Food waste tracking through removal workflows
 - Batch meal logging
 - Batch meal logging with inventory deduction
+- Planning context review tools
+- Low-stock and use-soon review tools
+- Inventory data-quality review tools
+- Draft restock suggestion tools
+- Draft meal suggestion tools
 - MCP resources for inspecting CSV-backed data
 - Curl-based MCP workflow testing
 - MCP Inspector testing support
-- Reorganized documentation for Version 1.4 closeout
+- Deterministic Python MCP smoke client
+- Provider-agent clients for OpenAI, Gemini, and local OpenAI-compatible models
+- Shared client safety policy for read/write tool exposure
+- Unit tests for client policy, schemas, config, and MCP result formatting
 
 ---
 
@@ -40,14 +56,42 @@ The project is designed to explore how an MCP server can support a grocery assis
 - Link meals to inventory where appropriate
 - Deduct inventory when tracked food is consumed
 - Record food waste when items are removed for waste-related reasons
+- Review planning context from existing grocery records
+- Draft meal and restock suggestions from structured signals
 - Provide structured resources and tools that an MCP-compatible client can use
-- Support future agent workflows such as meal planning, grocery list suggestions, and habit-aware recommendations
+- Support provider-agent workflows through OpenAI, Gemini, and local model clients
+- Preserve deterministic service-layer behaviour while allowing agents to reason over tool results
 
 ---
 
-## Current Documentation Layout
+## Mental Model
 
-Documentation is currently organized under:
+The project has three layers:
+
+```text
+CSV-backed data and service layer
+  ↓
+MCP server tools and resources
+  ↓
+Provider clients and agents
+```
+
+The MCP server remains the source of truth. Agents do not directly edit CSV files and do not replace service-layer validation. Agents can only work through exposed MCP tools.
+
+The client layer is responsible for:
+
+- connecting to the MCP server
+- connecting to a model provider
+- exposing allowed tools to the provider
+- applying read/write tool safety policy
+- logging visible tool calls
+- returning the final model response to the terminal
+
+---
+
+## Documentation Layout
+
+Documentation is organized under:
 
 ```text
 docs/
@@ -57,9 +101,11 @@ docs/
     guides/
       command_reference_v1_4.md
       mcp_testing_guide_v1_4.md
+      client_agent_integration.md
 
     checklists/
       version_1_4_closeout_checklist.md
+      version_1_6_client_agent_closeout_checklist.md
 
     journals/
       development_journal.md
@@ -75,24 +121,22 @@ docs/
 
     archive/
       originals/
-        old and superseded documentation files
+      client_agent/
 
   version_1_4_curl/
     curl_requests/
     curl_responses/
 ```
 
-The most important active documents are:
+The most important active documents for Version 1.6 are:
 
 ```text
-docs/docs/guides/command_reference_v1_4.md
-docs/docs/guides/mcp_testing_guide_v1_4.md
-docs/docs/checklists/version_1_4_closeout_checklist.md
-docs/docs/roadmap/project_roadmap.md
-docs/docs/planning/future_version_plans.md
+docs/docs/guides/client_agent_integration.md
+docs/docs/checklists/version_1_6_client_agent_closeout_checklist.md
+docs/docs/journals/development_journal.md
 ```
 
-The archived files are kept for history only. They should not be treated as the current source of truth.
+The older Version 1.4 curl and MCP Inspector documentation remains useful for lower-level MCP testing.
 
 ---
 
@@ -124,7 +168,7 @@ Expected inventory concepts include:
 - `expiry_date`
 - `notes`
 
-Version 1.4 stock status values include:
+Common stock status values include:
 
 ```text
 in_stock
@@ -163,13 +207,13 @@ This allows a meal such as spaghetti bolognese to have one parent entry and mult
 
 ### Batch Meal Tools
 
-Version 1.4 adds batch meal workflows.
+Batch meal workflows support two different use cases.
 
 #### `add_meal_with_items`
 
 Use this for intake-only meal logging.
 
-This tool creates:
+This tool creates records in:
 
 ```text
 user_intake_history.csv
@@ -184,7 +228,7 @@ Use this when the meal should be logged, but the inventory should not be changed
 
 Use this for inventory-linked meal logging.
 
-This tool creates or updates:
+This tool creates or updates records in:
 
 ```text
 user_intake_history.csv
@@ -196,6 +240,31 @@ user_inventory_consumption.csv
 It creates the meal, creates child intake items, deducts selected inventory items, and records linked inventory consumption events.
 
 Use this when the meal clearly used tracked inventory items.
+
+---
+
+### Planning and Recommendation Draft Tools
+
+The planning layer derives temporary signals from existing grocery records.
+
+Current planning and recommendation tools include:
+
+```text
+review_planning_context
+review_low_stock_items
+review_use_soon_items
+review_inventory_data_quality
+draft_restock_suggestions_tool
+draft_meal_suggestions_tool
+```
+
+These tools are intended to support agent reasoning without making automatic changes to stored data.
+
+Important rule:
+
+```text
+Review and draft tools should not mutate stored records.
+```
 
 ---
 
@@ -217,38 +286,80 @@ Use MCP resource listing to confirm the exact resource URIs registered by the cu
 
 ---
 
-## Data Storage
+## Client and Agent Integration
 
-The project uses local CSV files as its current persistence layer.
+Version 1.6 adds provider-agent clients under:
 
-This is intentional for Version 1 development because CSVs make it easy to:
+```text
+clients/
+  mcp_smoke_client.py
 
-- Inspect changes manually
-- Write focused tests
-- Understand the data model
-- Debug MCP requests and responses
-- Avoid introducing database complexity too early
+  shared/
+    config.py
+    instructions.py
+    mcp_helpers.py
+    openai_agents_filter.py
+    schema_adapters.py
+    tool_logging.py
+    tool_policy.py
 
-Future versions may migrate to a database or add a repository abstraction, but CSV-backed storage is appropriate for the current learning and prototype stage.
+  providers/
+    openai_agent_client.py
+    gemini_agent_client.py
+    local_agent_client.py
+```
+
+### Client Roles
+
+| Client | Role | Cost profile | Recommended use |
+|---|---|---:|---|
+| `clients.mcp_smoke_client` | Direct MCP connection test with no LLM | Free | First test after starting server |
+| `clients.providers.openai_agent_client` | Primary MCP-capable provider agent | Paid API | Best quality end-to-end agent test |
+| `clients.providers.gemini_agent_client` | MCP-capable Gemini comparison agent | Free/low-cost tier | Provider comparison and lower-cost checks |
+| `clients.providers.local_agent_client` | MCP-capable local OpenAI-compatible experiment | Local compute | Offline/cheap experimentation |
+
+### Safety Policy
+
+By default, provider clients expose read/review/draft tools only.
+
+Write tools require either:
+
+```powershell
+--allow-writes
+```
+
+or:
+
+```env
+GROCERY_AGENT_ALLOW_WRITES=true
+```
+
+This prevents normal advice and review prompts from accidentally mutating local CSV data.
 
 ---
 
-## Running the Test Suite
+## Environment Configuration
 
-From the project root:
+Create a private `.env` file locally:
 
-```powershell
-pytest -q
+```env
+OPENAI_API_KEY=your_real_openai_key_here
+GEMINI_API_KEY=your_real_gemini_key_here
+GROCERY_MCP_URL=http://127.0.0.1:8000/mcp
+
+OPENAI_AGENT_MODEL=gpt-5.4-mini
+GEMINI_MODEL=gemini-2.5-flash
+LOCAL_LLM_BASE_URL=http://127.0.0.1:11434/v1
+LOCAL_LLM_MODEL=qwen2.5:1.5b
+
+GROCERY_AGENT_ALLOW_WRITES=false
+GROCERY_AGENT_MAX_TOOL_ROUNDS=4
+GROCERY_AGENT_MAX_RESULT_CHARS=8000
 ```
 
-Run focused Version 1.4 tests:
+Never commit `.env`.
 
-```powershell
-pytest tests/test_batch_meal_service.py -q
-pytest tests/test_batch_inventory_meal_service.py -q
-pytest tests/test_mcp_tool_registration.py -q
-pytest tests/test_mcp_resource_registration.py -q
-```
+The committed `.env.example` should contain placeholders only.
 
 ---
 
@@ -273,6 +384,108 @@ The root URL may return:
 ```
 
 That is expected because the MCP endpoint is `/mcp`.
+
+---
+
+## Running the Test Suite
+
+From the project root:
+
+```powershell
+pytest -q
+```
+
+Run focused client tests:
+
+```powershell
+pytest tests/clients -q
+```
+
+Run syntax checks:
+
+```powershell
+python -m compileall clients
+```
+
+---
+
+## Running the MCP Smoke Client
+
+Start the MCP server first.
+
+Then run:
+
+```powershell
+python -m clients.mcp_smoke_client
+```
+
+Optional:
+
+```powershell
+python -m clients.mcp_smoke_client --show-resources --show-prompts
+```
+
+The smoke client should:
+
+- connect to the MCP server
+- list available tools
+- call `search_inventory`
+- print a compact inventory summary
+
+Use this before running paid or provider-specific agents.
+
+---
+
+## Running Provider Agent Clients
+
+Run provider clients from the project root.
+
+### OpenAI provider
+
+```powershell
+python -m clients.providers.openai_agent_client "Review my current grocery planning context and suggest useful next actions."
+```
+
+OpenAI is the primary high-confidence agent path. Because it uses a paid API, use smoke tests and cheaper provider tests first.
+
+### Gemini provider
+
+```powershell
+python -m clients.providers.gemini_agent_client "Review my current grocery planning context and suggest useful next actions."
+```
+
+Gemini is useful for lower-cost provider comparison and free-tier testing.
+
+### Local provider
+
+```powershell
+python -m clients.providers.local_agent_client "Review my current grocery planning context and suggest useful next actions."
+```
+
+The local provider is experimental. It depends on the selected local model and local runtime support for OpenAI-compatible chat/tool behaviour.
+
+---
+
+## Explicit Write-Mode Testing
+
+Use write mode only for deliberate, reversible development tests.
+
+Example:
+
+```powershell
+python -m clients.providers.openai_agent_client --allow-writes "Add a test inventory item called Test Apples with quantity 1 each."
+```
+
+Recommended process:
+
+```text
+1. Add a clearly named test item.
+2. Search for the test item.
+3. Remove the test item by exact stock_id.
+4. Confirm it is gone.
+```
+
+Do not use write mode for normal planning, review, meal suggestion, or restock suggestion prompts.
 
 ---
 
@@ -306,7 +519,9 @@ The MCP Inspector is useful for manually checking:
 
 ## Curl Testing
 
-Version 1.4 curl requests are currently stored in:
+The older Version 1.4 curl workflow remains useful for low-level MCP request testing.
+
+Curl requests are stored in:
 
 ```text
 docs/version_1_4_curl/curl_requests/
@@ -318,212 +533,66 @@ Curl responses are stored in:
 docs/version_1_4_curl/curl_responses/
 ```
 
-The active curl guide is:
+The curl workflow creates its own test records through MCP tools, rather than depending on stale manually seeded data.
+
+For full details, see:
 
 ```text
 docs/docs/guides/command_reference_v1_4.md
-```
-
-The active testing guide is:
-
-```text
 docs/docs/guides/mcp_testing_guide_v1_4.md
 ```
-
-The current curl workflow is designed to run from a clean dataset where CSV files contain only header rows.
-
-The workflow creates its own test records through MCP tools, rather than depending on stale manually seeded data.
-
----
-
-## Current Curl Request Groups
-
-```text
-docs/version_1_4_curl/curl_requests/
-  00_initialize.json
-  01_initialized_notification.json
-  02_list_tools.json
-  03_list_resources.json
-
-  inventory/
-    10_add_inventory_spaghetti.json
-    11_add_inventory_beef_mince.json
-    12_add_inventory_tomato_sauce.json
-    13_search_inventory_all.json
-    14_search_inventory_protein.json
-    15_update_inventory_beef_mince_low.json
-    16_search_inventory_low_stock.json
-
-  batch_meals/
-    20_add_meal_with_items_intake_only.json
-    21_add_meal_with_inventory_items_spag_bog.json
-
-  intake/
-    30_search_intake_by_date.json
-    31_search_intake_spaghetti.json
-
-  resources/
-    40_read_inventory_resource.json
-    41_read_intake_history_resource.json
-    42_read_intake_items_resource.json
-    43_read_inventory_consumption_resource.json
-    44_read_food_waste_resource.json
-
-  validation/
-    50_add_inventory_missing_food_item.json
-    51_add_inventory_negative_quantity.json
-    52_update_inventory_unknown_id.json
-    53_add_intake_invalid_date.json
-```
-
----
-
-## Recommended Manual Curl Flow
-
-From the `docs` folder:
-
-```powershell
-$RequestRoot = "version_1_4_curl/curl_requests"
-$ResponseRoot = "version_1_4_curl/curl_responses"
-New-Item -ItemType Directory -Force $ResponseRoot | Out-Null
-```
-
-Initialize the MCP session:
-
-```powershell
-curl.exe -i -s -X POST "http://127.0.0.1:8000/mcp" `
-  -H "Content-Type: application/json" `
-  -H "Accept: application/json, text/event-stream" `
-  --data-binary "@$RequestRoot/00_initialize.json" `
-  -D "$ResponseRoot/00_initialize_headers.txt" `
-  -o "$ResponseRoot/00_initialize_raw.txt"
-
-$SessionId = (Select-String -Path "$ResponseRoot/00_initialize_headers.txt" -Pattern "^mcp-session-id:\s*(.+)$").Matches[0].Groups[1].Value.Trim()
-$SessionId
-```
-
-Send initialized notification:
-
-```powershell
-curl.exe -s -X POST "http://127.0.0.1:8000/mcp" `
-  -H "Content-Type: application/json" `
-  -H "Accept: application/json, text/event-stream" `
-  -H "mcp-session-id: $SessionId" `
-  --data-binary "@$RequestRoot/01_initialized_notification.json" `
-  -o "$ResponseRoot/01_initialized_notification_raw.txt"
-```
-
-The command reference includes a helper function that saves each MCP response as both:
-
-```text
-*.raw.txt
-*.json
-```
-
-Use the `.json` files for readable inspection.
-
----
-
-## Clean Dataset Testing
-
-Version 1.4 closeout testing should be performed from a clean local dataset.
-
-For this project, “clean” means the CSV files exist but contain only header rows.
-
-This helps confirm that:
-
-- Tools can create records from scratch
-- ID generation works correctly
-- No request depends on stale test data
-- Inventory deductions are observable
-- Intake records are observable
-- Resource reads reflect the current CSV state
-- Validation errors do not corrupt data
 
 ---
 
 ## Important Design Notes
 
-### Why Keep Some Out-of-Stock Items?
+### Why Keep Deterministic MCP Tools?
 
-The project intentionally allows some out-of-stock items to remain represented in inventory.
+The agent should not become the source of truth.
 
-This is useful because out-of-stock items may still help future grocery reasoning. For example, they can show:
+The service layer and MCP tools remain responsible for:
 
-- Common staples
-- Frequently purchased items
-- Low-priority items that do not need urgent replacement
-- Ingredients that are normally kept on hand
-- Items that were previously used in meals
+- validation
+- record creation
+- record updates
+- relationship safety
+- inventory deduction
+- resource exposure
+- structured response contracts
 
-Removal is still supported when an item should leave active tracking.
+Agents can reason over tool results, but they should not bypass the deterministic MCP layer.
 
----
+### Why Separate Provider Clients?
 
-### Why Separate Intake Entries and Intake Items?
-
-Parent intake entries represent the eating event.
-
-Child intake items represent the components of the meal.
-
-This separation supports:
-
-- Better meal summaries
-- Item-level nutrition estimates
-- Inventory-linked food usage
-- Future meal templates
-- Future meal recommendation logic
-- Safer update and remove workflows
-
----
-
-### Why Separate Inventory Consumption?
-
-Inventory consumption records provide a history of how tracked inventory was used.
-
-This allows the assistant to reason about:
-
-- Usage patterns
-- Frequently consumed items
-- Ingredients used in meals
-- Stock depletion over time
-- Future grocery planning
-
----
-
-## Version Status
-
-Version 1.4 is intended to be closed after:
-
-- Full pytest suite passes
-- MCP Inspector smoke testing passes
-- Curl workflow passes from a clean dataset
-- Resource reads confirm final data state
-- Validation requests fail safely
-- Documentation is committed in its reorganized structure
-
-See:
+The project now supports multiple provider-agent clients:
 
 ```text
-docs/docs/checklists/version_1_4_closeout_checklist.md
+OpenAI
+Gemini
+Local OpenAI-compatible model
 ```
 
----
+Each provider can have different internal mechanics, but the project keeps the same outer client shape:
 
-## Suggested Git Workflow
-
-After confirming tests and curl workflow:
-
-```powershell
-git status
-git add README.md docs/
-git commit -m "docs: finalize version 1.4 documentation"
+```text
+terminal request
+  -> provider client
+  -> model/provider
+  -> allowed MCP tools
+  -> final response
 ```
 
-Then push:
+This makes provider comparison easier and keeps the difference focused on model quality, cost, speed, and reliability.
 
-```powershell
-git push
+### Why Gate Write Tools?
+
+Write tools can mutate local CSV data. By default, the provider clients expose only read/review/draft tools.
+
+This supports safe development:
+
+```text
+Normal mode = inspect, review, draft, explain
+Write mode = explicit data mutation only when enabled
 ```
 
 ---
@@ -532,15 +601,16 @@ git push
 
 Likely future versions may explore:
 
-- Grocery list generation
-- Meal suggestion prompts
-- Meal templates
-- Pantry-aware planning
-- Smarter stock status updates
-- Better nutrition summaries
-- Stronger food waste analytics
-- Database-backed persistence
-- Agent-driven workflows through MCP clients
+- stronger provider comparison tests
+- token/cost tracking for paid provider calls
+- provider response quality evaluation
+- explicit approval prompts for write tools
+- MCP prompt templates for common grocery workflows
+- grocery list generation
+- richer meal planning workflows
+- nutrition-aware recommendation refinement
+- database-backed persistence
+- long-term feedback and preference learning
 
 See:
 
@@ -561,9 +631,10 @@ When adding a new capability:
 2. Add tests for the service-layer behavior.
 3. Register the MCP tool or resource.
 4. Add MCP registration tests.
-5. Add or update curl request examples.
-6. Update the command/testing documentation.
-7. Run the full test suite.
-8. Commit the versioned change.
+5. Update deterministic clients or provider clients when the tool surface changes.
+6. Add or update curl, smoke, or provider test examples.
+7. Update the command/testing documentation.
+8. Run the full test suite.
+9. Commit the versioned change.
 
 The goal is to keep MCP behavior understandable, testable, and traceable back to the CSV-backed service layer.
